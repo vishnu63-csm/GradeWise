@@ -1,70 +1,72 @@
 // api/index.js — Vercel Serverless Entry Point
 //
-// This file is the ONLY entry point used by Vercel.
-// server.js is preserved for local development (node server.js / nodemon).
-//
-// Key differences from server.js:
-//  - Exports a handler function instead of calling app.listen()
-//  - MongoDB connection is cached between warm invocations (readyState check)
-//  - No process.exit() — serverless functions must never call it
-//  - No dns.setServers() — Vercel's infrastructure handles DNS correctly
+// All directories (public/, routes/, models/, middleware/) are bundled
+// via "includeFiles" in vercel.json so express.static and require() work.
 
 "use strict";
 
 require("dotenv").config();
 
-const express = require("express");
-const cors    = require("cors");
+const express  = require("express");
+const cors     = require("cors");
 const mongoose = require("mongoose");
-const path    = require("path");
+const path     = require("path");
 
 const authRoutes = require("../routes/auth");
 const apiRoutes  = require("../routes/api");
 
-// ── Build the Express app ─────────────────────────────────────────────────────
+// ── Express app ───────────────────────────────────────────────────────────────
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-// Serve all static files from /public (HTML, CSS, JS, images)
+// Static files — bundled alongside this function via vercel.json includeFiles
 app.use(express.static(path.join(__dirname, "../public")));
 
 // ── API routes ────────────────────────────────────────────────────────────────
-app.use("/api/auth", authRoutes);   // register, login
-app.use("/api",      apiRoutes);    // student data (JWT-protected)
+app.use("/api/auth", authRoutes);
+app.use("/api",      apiRoutes);
 
-// Health check — useful for Vercel uptime monitoring
+// Health check
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", dbState: mongoose.connection.readyState });
 });
 
-// SPA / MPA catch-all — serve login page for any unmatched GET route
-// (browser navigation, direct URL entry, etc.)
+// Catch-all — serve login page (SPA / MPA fallback)
 app.get("*", (_req, res) => {
   res.sendFile(path.join(__dirname, "../public", "login.html"));
 });
 
 // ── MongoDB connection (cached across warm invocations) ───────────────────────
-// readyState: 0=disconnected 1=connected 2=connecting 3=disconnecting
 async function connectDB() {
-  if (mongoose.connection.readyState === 1) return; // already connected
+  // Already connected — reuse the existing connection
+  if (mongoose.connection.readyState === 1) return;
 
   const uri = process.env.MONGODB_URI;
   if (!uri) {
     throw new Error(
-      "MONGODB_URI is not set. Add it to your Vercel project environment variables."
+      "MONGODB_URI is not configured. " +
+      "Go to Vercel → Project → Settings → Environment Variables and add MONGODB_URI."
     );
   }
 
   await mongoose.connect(uri, {
-    serverSelectionTimeoutMS: 5000, // fail fast if Atlas is unreachable
+    serverSelectionTimeoutMS: 5000,
   });
 }
 
 // ── Exported handler ──────────────────────────────────────────────────────────
-// Vercel calls this function for every incoming request.
 module.exports = async (req, res) => {
-  await connectDB();
+  try {
+    await connectDB();
+  } catch (err) {
+    console.error("[GradeWise] DB connection failed:", err.message);
+    // Return a friendly 503 instead of crashing the function
+    return res.status(503).json({
+      error: "Service temporarily unavailable. Database connection failed.",
+      detail: err.message,
+    });
+  }
   return app(req, res);
 };

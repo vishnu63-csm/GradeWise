@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>🎓 GradeWise — Login</title>
+<meta name="description" content="Login to GradeWise — Calculate, Track and Improve your JNTUK R23 semester grades and CGPA."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="auth.css"/>
+</head>
+<body>
+  <div class="auth-bg">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <main class="auth-center">
+    <div class="auth-card" id="authCard">
+      <!-- Logo / Brand -->
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="14" r="13" stroke="url(#g1)" stroke-width="2"/>
+            <text x="14" y="19" text-anchor="middle" font-size="12" font-family="IBM Plex Mono" fill="url(#g1)" font-weight="600">GPA</text>
+            <defs>
+              <linearGradient id="g1" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#60A5FA"/>
+                <stop offset="1" stop-color="#A78BFA"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">🎓 GradeWise</span>
+          <span class="brand-sub">Calculate. Track. Improve.</span>
+        </div>
+      </div>
+
+      <h1 class="auth-title">Welcome back</h1>
+      <p class="auth-desc">Sign in to access your grade records</p>
+
+      <form id="loginForm" novalidate>
+        <div class="field-group">
+          <label for="rollNumber" class="field-label">Roll Number</label>
+          <div class="input-wrap">
+            <svg class="input-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M10 2a4 4 0 100 8 4 4 0 000-8zM2 18a8 8 0 1116 0H2z"/>
+            </svg>
+            <input id="rollNumber" type="text" class="field-input" placeholder="e.g. 23A31A6201"
+              autocomplete="username" autocapitalize="characters" spellcheck="false"/>
+          </div>
+        </div>
+        <div class="field-group">
+          <label for="password" class="field-label">Password</label>
+          <div class="input-wrap">
+            <svg class="input-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
+            </svg>
+            <input id="password" type="password" class="field-input" placeholder="Your password"
+              autocomplete="current-password"/>
+            <button type="button" class="toggle-pass" id="togglePass" aria-label="Show/hide password">
+              <svg id="eyeIcon" viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
+                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+                <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="error-msg" id="errorMsg"></div>
+
+        <button type="submit" class="btn-auth" id="submitBtn">
+          <span id="btnText">Sign In</span>
+          <svg id="btnSpinner" class="spinner hidden" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="40" stroke-dashoffset="10"/>
+          </svg>
+        </button>
+      </form>
+
+      <p class="auth-switch">
+        Don't have an account?
+        <a href="register.html" class="auth-link">Register here</a>
+      </p>
+    </div>
+  </main>
+
+<script src="auth.js"></script>
+<script>
+  // ── Login-page specific logic ──
+  document.getElementById("loginForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const roll = document.getElementById("rollNumber").value.trim().toUpperCase();
+    const pass = document.getElementById("password").value;
+    const errEl = document.getElementById("errorMsg");
+    const btnText = document.getElementById("btnText");
+    const spinner = document.getElementById("btnSpinner");
+
+    if (!roll || !pass) {
+      showError(errEl, "Please fill in all fields.");
+      return;
+    }
+    setLoading(true, btnText, spinner);
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rollNumber: roll, password: pass }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Login failed");
+      localStorage.setItem("sgpa_token", data.token);
+      localStorage.setItem("sgpa_user", JSON.stringify(data.user));
+      window.location.href = "dashboard.html";
+    } catch (err) {
+      showError(errEl, err.message);
+      setLoading(false, btnText, spinner);
+    }
+  });
+
+  // Redirect to dashboard if already logged in
+  if (localStorage.getItem("sgpa_token")) {
+    window.location.href = "dashboard.html";
+  }
+</script>
+</body>
+</html>

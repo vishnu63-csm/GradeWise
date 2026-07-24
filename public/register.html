@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>🎓 GradeWise — Register</title>
+<meta name="description" content="Create your GradeWise account to start tracking your JNTUK R23 semester grades and CGPA."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="auth.css"/>
+</head>
+<body>
+  <div class="auth-bg">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <main class="auth-center">
+    <div class="auth-card auth-card-wide" id="authCard">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="14" r="13" stroke="url(#g1)" stroke-width="2"/>
+            <text x="14" y="19" text-anchor="middle" font-size="12" font-family="IBM Plex Mono" fill="url(#g1)" font-weight="600">GPA</text>
+            <defs>
+              <linearGradient id="g1" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#60A5FA"/>
+                <stop offset="1" stop-color="#A78BFA"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">🎓 GradeWise</span>
+          <span class="brand-sub">Calculate. Track. Improve.</span>
+        </div>
+      </div>
+
+      <h1 class="auth-title">Create account</h1>
+      <p class="auth-desc">Register with your roll number to get started</p>
+
+      <form id="registerForm" novalidate>
+        <div class="field-row">
+          <div class="field-group">
+            <label for="name" class="field-label">Full Name</label>
+            <div class="input-wrap">
+              <svg class="input-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10 2a4 4 0 100 8 4 4 0 000-8zM2 18a8 8 0 1116 0H2z"/>
+              </svg>
+              <input id="name" type="text" class="field-input" placeholder="e.g. K. Sai Teja"/>
+            </div>
+          </div>
+          <div class="field-group">
+            <label for="rollNumber" class="field-label">Roll Number</label>
+            <div class="input-wrap">
+              <svg class="input-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"/>
+              </svg>
+              <input id="rollNumber" type="text" class="field-input" placeholder="23A31A6201"
+                autocapitalize="characters" spellcheck="false"/>
+            </div>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field-group">
+            <label for="dept" class="field-label">Department</label>
+            <div class="input-wrap select-wrap">
+              <svg class="input-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z"/>
+              </svg>
+              <select id="dept" class="field-input">
+                <option>CSM</option><option>CSE</option><option>CSD</option>
+                <option>CSO</option><option>IT</option><option>ECE</option>
+                <option>EEE</option><option>MECH</option><option>CIVIL</option>
+                <option>AI&ML</option><option>AI&DS</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-group">
+            <label for="phone" class="field-label">Phone Number</label>
+            <div class="input-wrap">
+              <svg class="input-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
+              </svg>
+              <input id="phone" type="tel" class="field-input" placeholder="10-digit number" maxlength="10"/>
+            </div>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field-group">
+            <label for="password" class="field-label">Password</label>
+            <div class="input-wrap">
+              <svg class="input-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
+              </svg>
+              <input id="password" type="password" class="field-input" placeholder="Min. 6 characters"/>
+              <button type="button" class="toggle-pass" id="togglePass" aria-label="Toggle password">
+                <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
+                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+                  <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="field-group">
+            <label for="confirmPassword" class="field-label">Confirm Password</label>
+            <div class="input-wrap">
+              <svg class="input-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+              </svg>
+              <input id="confirmPassword" type="password" class="field-input" placeholder="Repeat password"/>
+            </div>
+          </div>
+        </div>
+
+        <!-- Password strength bar -->
+        <div class="strength-wrap" id="strengthWrap">
+          <div class="strength-bar"><div class="strength-fill" id="strengthFill"></div></div>
+          <span class="strength-label" id="strengthLabel"></span>
+        </div>
+
+        <div class="error-msg" id="errorMsg"></div>
+
+        <button type="submit" class="btn-auth" id="submitBtn">
+          <span id="btnText">Create Account</span>
+          <svg id="btnSpinner" class="spinner hidden" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="40" stroke-dashoffset="10"/>
+          </svg>
+        </button>
+      </form>
+
+      <p class="auth-switch">
+        Already have an account?
+        <a href="login.html" class="auth-link">Sign in</a>
+      </p>
+    </div>
+  </main>
+
+<script src="auth.js"></script>
+<script>
+  // ── Password strength indicator ──
+  const passInput = document.getElementById("password");
+  const strengthFill = document.getElementById("strengthFill");
+  const strengthLabel = document.getElementById("strengthLabel");
+  const strengthLevels = [
+    { max: 1, label: "Too short", color: "#EF4444", width: "20%" },
+    { max: 2, label: "Weak", color: "#F97316", width: "40%" },
+    { max: 3, label: "Fair", color: "#EAB308", width: "60%" },
+    { max: 4, label: "Good", color: "#22C55E", width: "80%" },
+    { max: 5, label: "Strong", color: "#60A5FA", width: "100%" },
+  ];
+  passInput.addEventListener("input", () => {
+    const v = passInput.value;
+    let score = 0;
+    if (v.length >= 6) score++;
+    if (v.length >= 10) score++;
+    if (/[A-Z]/.test(v)) score++;
+    if (/[0-9]/.test(v)) score++;
+    if (/[^A-Za-z0-9]/.test(v)) score++;
+    const lvl = strengthLevels[Math.min(score, 4)];
+    strengthFill.style.width = v ? lvl.width : "0%";
+    strengthFill.style.background = lvl.color;
+    strengthLabel.textContent = v ? lvl.label : "";
+    strengthLabel.style.color = lvl.color;
+  });
+
+  // ── Register form submit ──
+  document.getElementById("registerForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const errEl = document.getElementById("errorMsg");
+    const btnText = document.getElementById("btnText");
+    const spinner = document.getElementById("btnSpinner");
+
+    const name = document.getElementById("name").value.trim();
+    const roll = document.getElementById("rollNumber").value.trim().toUpperCase();
+    const dept = document.getElementById("dept").value;
+    const phone = document.getElementById("phone").value.trim();
+    const pass = document.getElementById("password").value;
+    const confirm = document.getElementById("confirmPassword").value;
+
+    if (!name || !roll || !phone || !pass || !confirm) {
+      showError(errEl, "Please fill in all fields."); return;
+    }
+    if (!/^\d{10}$/.test(phone)) {
+      showError(errEl, "Phone must be exactly 10 digits."); return;
+    }
+    if (pass.length < 6) {
+      showError(errEl, "Password must be at least 6 characters."); return;
+    }
+    if (pass !== confirm) {
+      showError(errEl, "Passwords do not match."); return;
+    }
+
+    setLoading(true, btnText, spinner);
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, rollNumber: roll, dept, phone, password: pass }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Registration failed");
+      localStorage.setItem("sgpa_token", data.token);
+      localStorage.setItem("sgpa_user", JSON.stringify(data.user));
+      window.location.href = "dashboard.html";
+    } catch (err) {
+      showError(errEl, err.message);
+      setLoading(false, btnText, spinner);
+    }
+  });
+
+  // Redirect if already logged in
+  if (localStorage.getItem("sgpa_token")) {
+    window.location.href = "dashboard.html";
+  }
+</script>
+</body>
+</html>
