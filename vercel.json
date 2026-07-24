@@ -6,15 +6,25 @@
       "use": "@vercel/node",
       "config": {
         "includeFiles": [
-          "public/**",
           "routes/**",
           "models/**",
           "middleware/**"
         ]
       }
+    },
+    {
+      "src": "public/**",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
-    { "src": "/(.*)", "dest": "/api/index.js" }
+    { "src": "/api/(.*)",  "dest": "/api/index.js" },
+    { "src": "/health",    "dest": "/api/index.js" },
+    { "src": "/(.*\\.html)", "dest": "/public/$1" },
+    { "src": "/(.*\\.css)",  "dest": "/public/$1" },
+    { "src": "/(.*\\.js)",   "dest": "/public/$1" },
+    { "src": "/(.*\\.png|.*\\.ico|.*\\.svg)", "dest": "/public/$1" },
+    { "src": "/",          "dest": "/public/login.html" },
+    { "src": "/(.*)",      "dest": "/public/login.html" }
   ]
 }

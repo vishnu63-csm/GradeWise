@@ -1,30 +1,34 @@
-// api/index.js — Vercel Serverless Entry Point
-//
-// All directories (public/, routes/, models/, middleware/) are bundled
-// via "includeFiles" in vercel.json so express.static and require() work.
-
+// api/index.js — Vercel Serverless Entry Point (Optimized for cold-start speed)
 "use strict";
 
 require("dotenv").config();
 
-const express  = require("express");
-const cors     = require("cors");
-const mongoose = require("mongoose");
-const path     = require("path");
+const express   = require("express");
+const cors      = require("cors");
+const mongoose  = require("mongoose");
+const path      = require("path");
 
-const authRoutes = require("../routes/auth");
-const apiRoutes  = require("../routes/api");
+// ── Disable mongoose buffering so DB errors surface immediately ───────────────
+mongoose.set("bufferCommands", false);
 
-// ── Express app ───────────────────────────────────────────────────────────────
+// ── Build the Express app ONCE at module level (survives warm invocations) ────
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
 
-// Static files — bundled alongside this function via vercel.json includeFiles
-app.use(express.static(path.join(__dirname, "../public")));
+// Serve static files from bundled public/ directory
+const PUBLIC_DIR = path.join(__dirname, "../public");
+app.use(express.static(PUBLIC_DIR, {
+  maxAge: "1d",          // Cache static assets in browser for 1 day
+  etag: true,
+  lastModified: true,
+}));
 
 // ── API routes ────────────────────────────────────────────────────────────────
+const authRoutes = require("../routes/auth");
+const apiRoutes  = require("../routes/api");
+
 app.use("/api/auth", authRoutes);
 app.use("/api",      apiRoutes);
 
@@ -33,40 +37,57 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok", dbState: mongoose.connection.readyState });
 });
 
-// Catch-all — serve login page (SPA / MPA fallback)
+// Catch-all — serve login page
 app.get("*", (_req, res) => {
-  res.sendFile(path.join(__dirname, "../public", "login.html"));
+  res.sendFile(path.join(PUBLIC_DIR, "login.html"));
 });
 
-// ── MongoDB connection (cached across warm invocations) ───────────────────────
-async function connectDB() {
-  // Already connected — reuse the existing connection
-  if (mongoose.connection.readyState === 1) return;
+// ── MongoDB connection — module-level promise cache ───────────────────────────
+// Reuse the same promise across all warm invocations of this serverless fn.
+let dbPromise = null;
+
+function connectDB() {
+  // readyState 1 = connected, 2 = connecting
+  if (mongoose.connection.readyState >= 1) return Promise.resolve();
+  if (dbPromise) return dbPromise;           // already connecting — reuse promise
 
   const uri = process.env.MONGODB_URI;
   if (!uri) {
-    throw new Error(
-      "MONGODB_URI is not configured. " +
-      "Go to Vercel → Project → Settings → Environment Variables and add MONGODB_URI."
+    return Promise.reject(
+      new Error("MONGODB_URI not set. Add it in Vercel → Settings → Environment Variables.")
     );
   }
 
-  await mongoose.connect(uri, {
-    serverSelectionTimeoutMS: 5000,
+  dbPromise = mongoose.connect(uri, {
+    serverSelectionTimeoutMS: 8000,   // fail fast if Atlas unreachable
+    socketTimeoutMS: 45000,
+    maxPoolSize: 10,                  // reuse up to 10 connections
+    minPoolSize: 1,                   // keep at least 1 alive between requests
+    connectTimeoutMS: 8000,
+  }).then(() => {
+    console.log("[GradeWise] MongoDB connected");
+  }).catch((err) => {
+    dbPromise = null;                 // reset so next request retries
+    throw err;
   });
+
+  return dbPromise;
 }
 
-// ── Exported handler ──────────────────────────────────────────────────────────
+// ── Exported Vercel handler ───────────────────────────────────────────────────
 module.exports = async (req, res) => {
-  try {
-    await connectDB();
-  } catch (err) {
-    console.error("[GradeWise] DB connection failed:", err.message);
-    // Return a friendly 503 instead of crashing the function
-    return res.status(503).json({
-      error: "Service temporarily unavailable. Database connection failed.",
-      detail: err.message,
-    });
+  // Skip DB connection for static assets to save time
+  const isStatic = /\.(css|js|html|png|ico|svg|woff2?|ttf|jpg|jpeg|gif|webp)$/i.test(req.url);
+  if (!isStatic) {
+    try {
+      await connectDB();
+    } catch (err) {
+      console.error("[GradeWise] DB connection failed:", err.message);
+      return res.status(503).json({
+        error: "Service temporarily unavailable. Database connection failed.",
+        detail: err.message,
+      });
+    }
   }
   return app(req, res);
 };
