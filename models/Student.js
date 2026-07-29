@@ -43,7 +43,9 @@ const StudentSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      match: [/^\d{10}$/, "Phone number must be 10 digits"],
+      unique: true,
+      index: true,
+      match: [/^[6-9]\d{9}$/, "Phone number must be a valid 10-digit Indian mobile number"],
     },
     email: { type: String, trim: true, lowercase: true, default: "" },
     category: {
