@@ -95,14 +95,25 @@
           <h2 class="panel-title">Enter Semester Marks</h2>
           <p class="panel-sub">Select semester, enter subjects and grades, then save.</p>
         </div>
-        <div class="sem-select-wrap">
-          <label class="field-label-sm">Semester</label>
-          <select id="semester" class="sem-select">
-            <option>1-1</option><option>1-2</option>
-            <option>2-1</option><option>2-2</option>
-            <option>3-1</option><option>3-2</option>
-            <option>4-1</option><option>4-2</option>
-          </select>
+        
+        <div style="display: flex; gap: 1rem;">
+          <div class="sem-select-wrap">
+            <label class="field-label-sm">Student Category</label>
+            <select id="studentCategory" class="sem-select">
+              <option value="Regular Entry">Regular Entry</option>
+              <option value="Lateral Entry">Lateral Entry</option>
+            </select>
+          </div>
+          
+          <div class="sem-select-wrap">
+            <label class="field-label-sm">Semester</label>
+            <select id="semester" class="sem-select">
+              <option value="1-1">1-1</option><option value="1-2">1-2</option>
+              <option value="2-1">2-1</option><option value="2-2">2-2</option>
+              <option value="3-1">3-1</option><option value="3-2">3-2</option>
+              <option value="4-1">4-1</option><option value="4-2">4-2</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -147,12 +158,17 @@
       </div>
       <div class="result-divider"></div>
       <div class="result-item">
-        <span class="result-label">Cumulative CGPA</span>
+        <span class="result-label">Semester Percentage</span>
+        <span class="result-value blue" id="bannerSemPct">—</span>
+      </div>
+      <div class="result-divider"></div>
+      <div class="result-item">
+        <span class="result-label">Overall CGPA</span>
         <span class="result-value purple" id="bannerCgpa">—</span>
       </div>
       <div class="result-divider"></div>
       <div class="result-item">
-        <span class="result-label">Percentage</span>
+        <span class="result-label">Overall Percentage</span>
         <span class="result-value gold" id="bannerPct">—</span>
       </div>
     </div>
@@ -172,8 +188,9 @@
               <th>Semester</th>
               <th>Credits</th>
               <th>SGPA</th>
-              <th>CGPA <span class="th-sub">(cumulative)</span></th>
-              <th>Percentage</th>
+              <th>Sem Pct</th>
+              <th>CGPA</th>
+              <th>CGPA Pct</th>
               <th></th>
             </tr>
           </thead>

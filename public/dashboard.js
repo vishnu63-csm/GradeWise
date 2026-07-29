@@ -23,13 +23,16 @@ function escAttr(v) {
   return String(v).replace(/"/g, "&quot;");
 }
 
-function deriveCgpa(semesters) {
+function deriveCgpa(semesters, category) {
   let tc = 0, tw = 0;
-  for (const s of semesters || []) { tc += s.credits; tw += s.credits * s.sgpa; }
+  for (const s of semesters || []) { 
+    if (category === "Lateral Entry" && (s.semester === "1-1" || s.semester === "1-2")) continue;
+    tc += s.credits; 
+    tw += s.credits * s.sgpa; 
+  }
   if (!tc) return null;
-  const cgpa = Math.round((tw / tc) * 100) / 100;
-  // JNTUK R23 percentage formula: (cgpa - 0.75) * 10
-  const pct = Math.round((cgpa - 0.75) * 10 * 100) / 100;
+  const cgpa = tw / tc;
+  const pct = (cgpa - 0.75) * 10;
   return { cgpa, pct };
 }
 
@@ -66,8 +69,8 @@ function updateCgpaRing(cgpa, pct) {
     fill.style.strokeDashoffset = RING_CIRC;
     return;
   }
-  cgpaEl.textContent = cgpa;
-  pctEl.textContent  = `${pct}%`;
+  cgpaEl.textContent = cgpa.toFixed(2);
+  pctEl.textContent  = `${pct.toFixed(2)}%`;
   const offset = RING_CIRC - (cgpa / 10) * RING_CIRC;
   fill.style.strokeDashoffset = offset.toFixed(1);
 }
@@ -94,10 +97,14 @@ function updateSgpaList(semesters) {
   const sorted = [...semesters].sort((a, b) => a.semester.localeCompare(b.semester));
   list.innerHTML = sorted.map((s) => {
     const barWidth = ((s.sgpa / 10) * 100).toFixed(1);
+    const semPct = (s.sgpa - 0.75) * 10;
     return `<div class="sgpa-item">
       <span class="sgpa-sem">${s.semester}</span>
       <div class="sgpa-bar-wrap"><div class="sgpa-bar" style="width:${barWidth}%"></div></div>
-      <span class="sgpa-val">${s.sgpa}</span>
+      <span class="sgpa-val" style="display:flex; flex-direction:column; text-align:right;">
+        <span>${Number(s.sgpa).toFixed(2)}</span>
+        <span style="font-size:0.7rem; color:var(--text-muted);">${semPct.toFixed(2)}%</span>
+      </span>
     </div>`;
   }).join("");
 }
@@ -106,7 +113,7 @@ function updateSgpaList(semesters) {
 function refreshSidebar(student) {
   updateSidebarInfo(student);
   updateSgpaList(student.semesters || []);
-  const d = deriveCgpa(student.semesters);
+  const d = deriveCgpa(student.semesters, student.category);
   updateCgpaRing(d ? d.cgpa : null, d ? d.pct : null);
 }
 
@@ -178,7 +185,7 @@ document.getElementById("calcBtn").addEventListener("click", async () => {
     }
     setMsg(msgEl, `✓ Saved ${semester}`, "ok");
     // Use JNTUK formula for banner percentage too
-    const pct = data.cgpa != null ? Math.round((data.cgpa - 0.75) * 10 * 100) / 100 : null;
+    const pct = data.cgpa != null ? (data.cgpa - 0.75) * 10 : null;
     showResultBanner(data.sgpa, data.cgpa, pct ?? data.percentage);
     refreshSidebar(data.student);
     renderHistory(data.student);
@@ -190,9 +197,16 @@ document.getElementById("calcBtn").addEventListener("click", async () => {
 /* ── Result banner ── */
 function showResultBanner(sgpa, cgpa, pct) {
   const banner = document.getElementById("resultBanner");
-  document.getElementById("bannerSgpa").textContent = sgpa ?? "—";
-  document.getElementById("bannerCgpa").textContent = cgpa ?? "—";
-  document.getElementById("bannerPct").textContent  = pct != null ? `${pct}%` : "—";
+  document.getElementById("bannerSgpa").textContent = sgpa != null ? Number(sgpa).toFixed(2) : "—";
+  
+  if (sgpa != null) {
+    document.getElementById("bannerSemPct").textContent = `${((sgpa - 0.75) * 10).toFixed(2)}%`;
+  } else {
+    document.getElementById("bannerSemPct").textContent = "—";
+  }
+
+  document.getElementById("bannerCgpa").textContent = cgpa != null ? Number(cgpa).toFixed(2) : "—";
+  document.getElementById("bannerPct").textContent  = pct != null ? `${Number(pct).toFixed(2)}%` : "—";
   banner.classList.remove("hidden");
 }
 
@@ -210,19 +224,21 @@ function renderHistory(student) {
   let runC = 0, runW = 0;
 
   for (const sem of sorted) {
+    if (student.category === "Lateral Entry" && (sem.semester === "1-1" || sem.semester === "1-2")) continue;
     runC += sem.credits;
     runW += sem.credits * sem.sgpa;
-    const runCgpa = runC > 0 ? Math.round((runW / runC) * 100) / 100 : null;
-    // JNTUK R23: percentage = (cgpa - 0.75) * 10
-    const runPct  = runCgpa != null ? Math.round((runCgpa - 0.75) * 10 * 100) / 100 : null;
+    const runCgpa = runC > 0 ? (runW / runC) : null;
+    const runPct  = runCgpa != null ? (runCgpa - 0.75) * 10 : null;
+    const semPct  = (sem.sgpa - 0.75) * 10;
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="td-sem">${sem.semester}</td>
       <td>${sem.credits}</td>
-      <td class="td-sgpa">${sem.sgpa}</td>
-      <td class="td-cgpa">${runCgpa ?? "—"}</td>
-      <td class="td-pct">${runPct != null ? runPct + "%" : "—"}</td>
+      <td class="td-sgpa">${Number(sem.sgpa).toFixed(2)}</td>
+      <td class="td-sempct">${semPct.toFixed(2)}%</td>
+      <td class="td-cgpa">${runCgpa != null ? Number(runCgpa).toFixed(2) : "—"}</td>
+      <td class="td-pct">${runPct != null ? Number(runPct).toFixed(2) + "%" : "—"}</td>
       <td><button class="icon-btn del-sem" title="Delete semester">&times;</button></td>
     `;
     tr.querySelector(".del-sem").addEventListener("click", () =>
@@ -232,16 +248,17 @@ function renderHistory(student) {
   }
 
   // Summary row
-  const finalCgpa = runC > 0 ? Math.round((runW / runC) * 100) / 100 : null;
-  const finalPct  = finalCgpa != null ? Math.round((finalCgpa - 0.75) * 10 * 100) / 100 : null;
+  const finalCgpa = runC > 0 ? (runW / runC) : null;
+  const finalPct  = finalCgpa != null ? (finalCgpa - 0.75) * 10 : null;
   if (finalCgpa != null) {
     const tr = document.createElement("tr");
     tr.className = "summary-row";
     tr.innerHTML = `
-      <td colspan="2"><strong>Overall (${sorted.length} sem${sorted.length > 1 ? "s" : ""})</strong></td>
+      <td colspan="2"><strong>Overall (${body.children.length} sem${body.children.length > 1 ? "s" : ""})</strong></td>
       <td></td>
-      <td class="td-cgpa"><strong>${finalCgpa}</strong></td>
-      <td class="td-pct"><strong>${finalPct}%</strong></td>
+      <td></td>
+      <td class="td-cgpa"><strong>${Number(finalCgpa).toFixed(2)}</strong></td>
+      <td class="td-pct"><strong>${Number(finalPct).toFixed(2)}%</strong></td>
       <td></td>
     `;
     body.appendChild(tr);
@@ -276,17 +293,67 @@ async function loadStudent() {
     const res = await fetch("/api/student", { headers: apiHeaders() });
     if (res.status === 401) { window.location.href = "login.html"; return; }
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error);
     refreshSidebar(data);
     renderHistory(data);
+    setupCategoryUI(data);
     if (data.cgpa != null) {
-      const pct = Math.round((data.cgpa - 0.75) * 10 * 100) / 100;
+      const pct = (data.cgpa - 0.75) * 10;
       showResultBanner(null, data.cgpa, pct);
       document.getElementById("bannerSgpa").textContent = "—";
     }
   } catch (err) {
     console.error("Failed to load student:", err.message);
   }
+}
+
+function setupCategoryUI(student) {
+  const catSelect = document.getElementById("studentCategory");
+  const semSelect = document.getElementById("semester");
+  
+  if (student.category) {
+    catSelect.value = student.category;
+  }
+  
+  const updateSemesters = () => {
+    const isLateral = catSelect.value === "Lateral Entry";
+    const semOptions = semSelect.querySelectorAll("option");
+    semOptions.forEach(opt => {
+      if (opt.value === "1-1" || opt.value === "1-2") {
+        opt.style.display = isLateral ? "none" : "";
+      }
+    });
+    if (isLateral && (semSelect.value === "1-1" || semSelect.value === "1-2")) {
+      semSelect.value = "2-1";
+    }
+  };
+  
+  updateSemesters();
+
+  catSelect.addEventListener("change", async (e) => {
+    const newCat = e.target.value;
+    updateSemesters();
+    try {
+      const res = await fetch("/api/student/category", {
+        method: "PUT",
+        headers: apiHeaders(),
+        body: JSON.stringify({ category: newCat })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        refreshSidebar(data);
+        renderHistory(data);
+        if (data.cgpa != null) {
+          const pct = (data.cgpa - 0.75) * 10;
+          showResultBanner(null, data.cgpa, pct);
+          document.getElementById("bannerSgpa").textContent = "—";
+        } else {
+          document.getElementById("resultBanner").classList.add("hidden");
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  });
 }
 
 loadStudent();

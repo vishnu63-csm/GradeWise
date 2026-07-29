@@ -46,6 +46,11 @@ const StudentSchema = new mongoose.Schema(
       match: [/^\d{10}$/, "Phone number must be 10 digits"],
     },
     email: { type: String, trim: true, lowercase: true, default: "" },
+    category: {
+      type: String,
+      enum: ["Regular Entry", "Lateral Entry"],
+      default: "Regular Entry",
+    },
     semesters: { type: [SemesterSchema], default: [] },
   },
   { timestamps: true }
@@ -56,12 +61,15 @@ StudentSchema.methods.computeCgpa = function () {
   let totalCredits = 0;
   let weighted = 0;
   for (const s of this.semesters) {
+    if (this.category === "Lateral Entry" && (s.semester === "1-1" || s.semester === "1-2")) {
+      continue;
+    }
     totalCredits += s.credits;
-    weighted += s.credits * s.sgpa;
+    weighted += s.credits * s.sgpa; // sgpa is now stored with full precision
   }
   if (totalCredits === 0) return null;
-  const cgpa = Math.round((weighted / totalCredits) * 100) / 100;
-  const percentage = Math.round((cgpa - 0.75) * 10 * 100) / 100;
+  const cgpa = weighted / totalCredits;
+  const percentage = (cgpa - 0.75) * 10;
   return { cgpa, percentage, totalCredits };
 };
 

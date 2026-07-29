@@ -18,8 +18,8 @@ function makeToken(user) {
 // POST /api/auth/register
 router.post("/register", async (req, res) => {
   try {
-    const { name, rollNumber, dept, phone, password } = req.body;
-    if (!name || !rollNumber || !dept || !phone || !password) {
+    const { name, rollNumber, dept, phone, password, category } = req.body;
+    if (!name || !rollNumber || !dept || !phone || !password || !category) {
       return res.status(400).json({ error: "All fields are required." });
     }
     if (!/^\d{10}$/.test(phone)) {
@@ -39,7 +39,7 @@ router.post("/register", async (req, res) => {
     const user = new User({ name, rollNumber: roll, dept, phone, passwordHash: password });
     await user.save();
 
-    const student = new Student({ name, rollNumber: roll, dept, phone, semesters: [] });
+    const student = new Student({ name, rollNumber: roll, dept, phone, semesters: [], category });
     await student.save();
 
     const token = makeToken(user);
