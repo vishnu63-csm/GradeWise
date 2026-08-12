@@ -50,7 +50,7 @@ let dbPromise = null;
 
 function connectDB() {
   // readyState 1 = connected, 2 = connecting
-  if (mongoose.connection.readyState >= 1) return Promise.resolve();
+  if (mongoose.connection.readyState === 1) return Promise.resolve();
   if (dbPromise) return dbPromise;           // already connecting — reuse promise
 
   const uri = process.env.MONGODB_URI;
