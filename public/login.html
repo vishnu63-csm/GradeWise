@@ -114,16 +114,16 @@
       if (!res.ok) throw new Error(data.error || "Login failed");
       localStorage.setItem("sgpa_token", data.token);
       localStorage.setItem("sgpa_user", JSON.stringify(data.user));
-      window.location.href = "dashboard.html";
+      window.location.href = "app.html";
     } catch (err) {
       showError(errEl, err.message);
       setLoading(false, btnText, spinner);
     }
   });
 
-  // Redirect to dashboard if already logged in
+  // Redirect to app if already logged in
   if (localStorage.getItem("sgpa_token")) {
-    window.location.href = "dashboard.html";
+    window.location.href = "app.html";
   }
 </script>
 </body>

@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>🔐 GradeWise Admin Portal</title>
+<meta name="description" content="GradeWise Admin — Results Analytics Platform for JNTUK. Upload results, view analytics, export reports."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="app.css"/>
+<style>
+/* ── Admin-specific styles ──────────────────────────────────────── */
+.admin-brand-dot { background: linear-gradient(135deg,#DC2626,#9333EA)!important; }
+.admin-topnav { border-bottom-color: #1E293B; background: rgba(15,23,42,.97)!important; }
+.admin-topnav .nav-brand { color: #F8FAFC!important; }
+.admin-topnav .nav-tab { color: #94A3B8; }
+.admin-topnav .nav-tab:hover { color: #F8FAFC; background: rgba(255,255,255,.07); }
+.admin-topnav .nav-tab.active { color: #F8FAFC; background: rgba(255,255,255,.1); }
+.admin-topnav .nav-badge { background: rgba(220,38,38,.2); color: #FCA5A5; border-color: rgba(220,38,38,.4); }
+.admin-topnav .btn-logout { color: #94A3B8; border-color: #334155; }
+.admin-topnav .btn-logout:hover { color: #FCA5A5; border-color: #DC2626; }
+.admin-topnav .user-chip { background: #1E293B; border-color: #334155; }
+.admin-topnav .user-name { color: #F8FAFC; }
+.admin-topnav .user-avatar { background: linear-gradient(135deg,#DC2626,#9333EA)!important; }
+
+/* Login Screen */
+.admin-login-bg {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: #0F172A;
+  background-image: radial-gradient(ellipse at 20% 50%, rgba(79,70,229,.15) 0%, transparent 50%),
+                    radial-gradient(ellipse at 80% 20%, rgba(220,38,38,.1) 0%, transparent 50%);
+}
+.admin-login-card {
+  background: #1E293B; border: 1px solid #334155;
+  border-radius: var(--radius-xl); padding: 48px;
+  width: 100%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,.4);
+}
+.admin-login-card h2 { color: #F8FAFC; margin-bottom: 6px; }
+.admin-login-card .form-label { color: #94A3B8; }
+.admin-login-card .form-control {
+  background: #0F172A; border-color: #334155; color: #F8FAFC;
+}
+.admin-login-card .form-control:focus { border-color: #9333EA; }
+.admin-login-card .form-control::placeholder { color: #475569; }
+.login-logo {
+  width: 56px; height: 56px; border-radius: 16px; margin-bottom: var(--space-lg);
+  background: linear-gradient(135deg,#DC2626,#9333EA);
+  display: flex; align-items: center; justify-content: center; font-size: 28px;
+}
+
+/* Upload area */
+.upload-zone {
+  border: 2px dashed var(--border); border-radius: var(--radius-lg);
+  padding: var(--space-2xl) var(--space-lg); text-align: center;
+  cursor: pointer; transition: all .2s;
+  background: var(--bg-surface);
+}
+.upload-zone:hover, .upload-zone.drag-over {
+  border-color: var(--brand-primary); background: var(--bg-hover);
+}
+.upload-zone input[type=file] { display: none; }
+.upload-icon { font-size: 2.5rem; margin-bottom: var(--space-md); }
+
+/* Batch list */
+.batch-item {
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: var(--space-md) var(--space-lg);
+  display: flex; align-items: center; gap: var(--space-md);
+  transition: all .18s;
+}
+.batch-item:hover { box-shadow: var(--shadow-md); border-color: var(--brand-primary); }
+.batch-item-info { flex: 1; }
+.batch-title { font-weight: 700; font-size: 15px; color: var(--text-primary); }
+.batch-meta { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+
+/* Leaderboard */
+.rank-badge {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; font-weight: 800;
+  font-size: 13px; flex-shrink: 0;
+}
+.rank-1 { background: #FEF3C7; color: #92400E; }
+.rank-2 { background: #F1F5F9; color: #475569; }
+.rank-3 { background: #FFEDD5; color: #9A3412; }
+.rank-n { background: var(--bg-muted); color: var(--text-muted); font-size:12px; }
+
+/* Pass/Fail donut mini */
+.mini-chart { width: 80px; height: 80px; position: relative; }
+.chart-center-label {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; pointer-events: none;
+}
+
+/* Subject cards */
+.subject-analytics-card {
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: var(--space-md);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.progress-bar {
+  height: 6px; background: var(--bg-muted); border-radius: 3px; overflow: hidden;
+}
+.progress-fill { height: 100%; border-radius: 3px; transition: width .3s ease; }
+
+/* Dark page background for admin */
+body.admin-body { background: #F8FAFC; }
+
+.stat-diff {
+  font-size: 12px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 3px;
+}
+.stat-diff.up   { color: var(--brand-success); }
+.stat-diff.down { color: var(--brand-danger); }
+
+/* PDF Preview banner */
+.parse-result-banner {
+  background: #EFF6FF; border: 1.5px solid #BFDBFE;
+  border-radius: var(--radius-lg); padding: var(--space-lg);
+  margin-top: var(--space-md);
+}
+</style>
+</head>
+<body class="admin-body">
+
+<!-- ── LOGIN SCREEN ────────────────────────────────────────────────────── -->
+<div class="admin-login-bg" id="loginScreen">
+  <div class="admin-login-card">
+    <div class="login-logo">🔐</div>
+    <h2>Admin Portal</h2>
+    <p style="color:#64748B;font-size:14px;margin-bottom:var(--space-xl);">GradeWise Results Analytics Platform</p>
+    <div class="form-group">
+      <label class="form-label">Admin Username</label>
+      <input class="form-control" type="text" id="adminUser" placeholder="Enter admin username" autocomplete="username"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input class="form-control" type="password" id="adminPass" placeholder="Enter password" autocomplete="current-password"/>
+    </div>
+    <div id="loginMsg" style="margin-bottom:var(--space-md);"></div>
+    <button class="btn btn-primary btn-block btn-lg" id="loginBtn" onclick="adminLogin()">
+      <span id="loginBtnText">Sign In</span>
+      <span id="loginBtnSpinner" style="display:none;" class="spinner"></span>
+    </button>
+    <p style="margin-top:var(--space-xl);text-align:center;font-size:13px;color:#475569;">
+      <a href="index.html" style="color:#64748B;">← Back to Student Platform</a>
+    </p>
+  </div>
+</div>
+
+<!-- ── ADMIN APP (shown after login) ───────────────────────────────────── -->
+<div id="adminApp" style="display:none;">
+
+<!-- ── TOP NAV ──────────────────────────────────────────────────────── -->
+<nav class="topnav admin-topnav">
+  <div class="topnav-inner">
+    <a class="nav-brand" href="#">
+      <span class="brand-dot admin-brand-dot"></span>
+      GradeWise Admin
+      <span class="nav-badge">Analytics</span>
+    </a>
+    <ul class="nav-tabs" id="adminNavTabs">
+      <li><button class="nav-tab active" data-tab="dashboard">Dashboard</button></li>
+      <li><button class="nav-tab" data-tab="upload">Upload Results</button></li>
+      <li><button class="nav-tab" data-tab="analytics">Analytics</button></li>
+      <li><button class="nav-tab" data-tab="leaderboard">Leaderboard</button></li>
+      <li><button class="nav-tab" data-tab="students">Students</button></li>
+    </ul>
+    <div class="nav-right">
+      <div class="user-chip">
+        <div class="user-avatar" id="adminAvatar">A</div>
+        <span class="user-name" id="adminName">Admin</span>
+      </div>
+      <button class="btn-logout" onclick="adminLogout()">
+        <svg viewBox="0 0 20 20" fill="currentColor" width="15" height="15">
+          <path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clip-rule="evenodd"/>
+        </svg>
+        Logout
+      </button>
+    </div>
+  </div>
+</nav>
+
+<main>
+<div class="page-content">
+
+<!-- ════════════════════════════════════════════════════ DASHBOARD ════ -->
+<section class="section-tab active" id="tab-dashboard">
+  <div class="page-header-row">
+    <div>
+      <h1>Analytics Dashboard</h1>
+      <p>Results overview across all uploaded batches.</p>
+    </div>
+    <button class="btn btn-primary" onclick="adminSwitchTab('upload')">+ Upload Results</button>
+  </div>
+  <div id="dashLoading" style="text-align:center;padding:40px 0;color:var(--text-muted);">
+    <div class="spinner" style="border-color:var(--border);border-top-color:var(--brand-primary);width:32px;height:32px;margin:0 auto 12px;"></div>
+    <p>Loading analytics…</p>
+  </div>
+  <div id="dashContent" style="display:none;">
+    <div class="kpi-grid" id="dashKpiGrid" style="margin-bottom:var(--space-xl);"></div>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--space-md);margin-bottom:var(--space-xl);">
+      <div class="chart-wrap">
+        <div class="chart-title">📊 Batch-wise Average SGPA</div>
+        <div class="chart-canvas-wrap h-200">
+          <canvas id="dashBatchChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-title">🎯 Overall Pass / Fail</div>
+        <div style="height:200px;display:flex;align-items:center;justify-content:center;">
+          <canvas id="dashPassFailChart" style="max-height:180px;max-width:180px;"></canvas>
+        </div>
+      </div>
+    </div>
+    <!-- Recent Batches -->
+    <div class="section-heading">Recent Batches</div>
+    <div id="recentBatchesList" style="display:flex;flex-direction:column;gap:var(--space-sm);"></div>
+  </div>
+  <div class="empty-state" id="dashEmpty" style="display:none;">
+    <div class="empty-icon">📊</div>
+    <div class="empty-title">No Result Batches Yet</div>
+    <p class="empty-sub">Upload a result PDF or enter result data to see analytics.</p>
+    <button class="btn btn-primary" onclick="adminSwitchTab('upload')">+ Upload First Batch</button>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════ UPLOAD ═══════ -->
+<section class="section-tab" id="tab-upload">
+  <div class="page-header">
+    <h1>Upload Results</h1>
+    <p>Upload JNTUK result PDFs or enter result data manually.</p>
+  </div>
+
+  <div style="max-width:700px;">
+    <div class="card" style="margin-bottom:var(--space-md);">
+      <div class="section-heading">Batch Details</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md);">
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">Academic Year <span class="required">*</span></label>
+          <input class="form-control" id="upYear" placeholder="e.g. 2024-25"/>
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">Semester <span class="required">*</span></label>
+          <select class="form-control" id="upSemester">
+            <option value="">-- Select --</option>
+            <option>1-1</option><option>1-2</option><option>2-1</option><option>2-2</option>
+            <option>3-1</option><option>3-2</option><option>4-1</option><option>4-2</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">Department <span class="required">*</span></label>
+          <select class="form-control" id="upDept">
+            <option value="">-- Select --</option>
+            <option>CSE</option><option>ECE</option><option>EEE</option>
+            <option>MECH</option><option>CIVIL</option><option>IT</option>
+            <option>AIDS</option><option>AIML</option><option>DS</option><option>CSD</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">Regulation</label>
+          <select class="form-control" id="upRegulation">
+            <option value="R23">R23</option>
+            <option value="R20">R20</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:var(--space-md);">
+      <div class="section-heading">Upload PDF</div>
+      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('pdfInput').click()">
+        <input type="file" id="pdfInput" accept=".pdf" onchange="handleFileSelect(this)"/>
+        <div class="upload-icon">📄</div>
+        <div style="font-weight:700;margin-bottom:6px;">Click to select or drag &amp; drop</div>
+        <p style="font-size:13px;color:var(--text-muted);">JNTUK result PDF (max 10MB)</p>
+      </div>
+      <div id="fileInfo" style="margin-top:var(--space-md);display:none;"></div>
+      <div style="margin-top:var(--space-md);">
+        <button class="btn btn-primary" id="uploadBtn" onclick="uploadPdf()" style="margin-right:var(--space-sm);">
+          <span id="uploadBtnText">Parse &amp; Preview</span>
+          <span id="uploadBtnSpinner" style="display:none;" class="spinner"></span>
+        </button>
+      </div>
+      <div id="parseResult" style="display:none;margin-top:var(--space-md);"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-heading">Manual Entry</div>
+      <p style="font-size:14px;margin-bottom:var(--space-md);">Add student results one by one.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm);margin-bottom:var(--space-md);">
+        <input class="form-control" id="manualRoll" placeholder="Roll Number (e.g. 23HP1A0501)"/>
+        <input class="form-control" id="manualName" placeholder="Student Name"/>
+        <input class="form-control" id="manualSgpa" placeholder="SGPA (e.g. 8.45)" type="number" min="0" max="10" step="0.01"/>
+        <input class="form-control" id="manualCredits" placeholder="Credits" type="number" min="0" step="0.5"/>
+      </div>
+      <input class="form-control" id="manualBacklogs" placeholder="Backlog subjects (comma-separated, leave blank if none)" style="margin-bottom:var(--space-sm);"/>
+      <button class="btn btn-ghost btn-sm" onclick="addManualEntry()">+ Add Entry</button>
+      <div id="manualEntriesList" style="margin-top:var(--space-md);display:flex;flex-direction:column;gap:8px;"></div>
+      <div id="manualSubmitRow" style="margin-top:var(--space-md);display:none;">
+        <button class="btn btn-primary" onclick="submitManualBatch()">
+          <span id="manualBtnText">Submit Batch</span>
+          <span id="manualBtnSpinner" style="display:none;" class="spinner"></span>
+        </button>
+      </div>
+    </div>
+    <div id="uploadMsg" style="margin-top:var(--space-md);"></div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════ ANALYTICS ════ -->
+<section class="section-tab" id="tab-analytics">
+  <div class="page-header-row">
+    <div>
+      <h1>Batch Analytics</h1>
+      <p>Deep dive into results for a specific batch.</p>
+    </div>
+    <select class="form-control" id="analyticsBatchSelect" style="max-width:280px;" onchange="loadBatchAnalytics()">
+      <option value="">-- Select Batch --</option>
+    </select>
+  </div>
+
+  <div id="analyticsLoading" style="text-align:center;padding:40px;display:none;">
+    <div class="spinner" style="border-color:var(--border);border-top-color:var(--brand-primary);width:32px;height:32px;margin:0 auto 12px;"></div>
+    <p>Computing analytics…</p>
+  </div>
+
+  <div id="analyticsContent" style="display:none;">
+    <!-- KPI row -->
+    <div class="kpi-grid" id="analyticsKpiGrid" style="margin-bottom:var(--space-xl);"></div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md);margin-bottom:var(--space-xl);">
+      <div class="chart-wrap">
+        <div class="chart-title">📊 SGPA Distribution</div>
+        <div class="chart-canvas-wrap h-200">
+          <canvas id="sgpaDistChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-title">✅ Pass vs Fail</div>
+        <div style="height:200px;display:flex;align-items:center;justify-content:center;">
+          <canvas id="batchPassFailChart" style="max-height:180px;max-width:180px;"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Subject-wise -->
+    <div class="section-heading">Subject-wise Analytics</div>
+    <div id="subjectAnalyticsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:var(--space-md);margin-bottom:var(--space-xl);"></div>
+
+    <!-- Export -->
+    <div style="display:flex;gap:var(--space-sm);">
+      <button class="btn btn-ghost btn-sm" onclick="exportCsv()">⬇ Export CSV</button>
+      <button class="btn btn-primary btn-sm" onclick="window.print()">🖨 Print</button>
+    </div>
+  </div>
+
+  <div class="empty-state" id="analyticsEmpty" style="display:none;">
+    <div class="empty-icon">🔍</div>
+    <div class="empty-title">Select a Batch</div>
+    <p class="empty-sub">Choose a result batch from the dropdown to view analytics.</p>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════ LEADERBOARD ══ -->
+<section class="section-tab" id="tab-leaderboard">
+  <div class="page-header-row">
+    <div>
+      <h1>Leaderboard</h1>
+      <p>Top performers ranked by SGPA.</p>
+    </div>
+    <select class="form-control" id="lbBatchSelect" style="max-width:280px;" onchange="loadLeaderboard()">
+      <option value="">-- Select Batch --</option>
+    </select>
+  </div>
+  <div id="lbContent" style="display:none;">
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th>Rank</th><th>Name</th><th>Roll Number</th><th>SGPA</th><th>Percentage</th><th>Status</th></tr>
+        </thead>
+        <tbody id="lbTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="empty-state" id="lbEmpty">
+    <div class="empty-icon">🏆</div>
+    <div class="empty-title">Select a Batch</div>
+    <p class="empty-sub">Choose a batch to see the leaderboard.</p>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════ STUDENTS ═════ -->
+<section class="section-tab" id="tab-students">
+  <div class="page-header-row">
+    <div>
+      <h1>Registered Students</h1>
+      <p>All students in the GradeWise database.</p>
+    </div>
+    <div style="display:flex;gap:var(--space-sm);">
+      <input class="form-control" id="studentSearch" placeholder="Search by name or roll…" oninput="filterStudents()" style="width:240px;"/>
+    </div>
+  </div>
+  <div id="studentsLoading" style="text-align:center;padding:40px;color:var(--text-muted);">
+    <div class="spinner" style="border-color:var(--border);border-top-color:var(--brand-primary);width:32px;height:32px;margin:0 auto 12px;"></div>
+    <p>Loading students…</p>
+  </div>
+  <div class="table-wrap" id="studentsTable" style="display:none;">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th><th>Name</th><th>Roll Number</th>
+          <th>Department</th><th>Category</th>
+          <th>CGPA</th><th>Semesters</th>
+        </tr>
+      </thead>
+      <tbody id="studentsTableBody"></tbody>
+    </table>
+  </div>
+</section>
+
+</div>
+</main>
+</div><!-- /adminApp -->
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

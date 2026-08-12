@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>🎓 GradeWise — Academic Dashboard</title>
+<meta name="description" content="GradeWise: Track your SGPA, CGPA and academic performance. Built for JNTUK R23 students."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="app.css"/>
+</head>
+<body>
+
+<!-- ── TOP NAV ─────────────────────────────────────────────────────────── -->
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a class="nav-brand" href="#">
+      <span class="brand-dot"></span>
+      GradeWise
+      <span class="nav-badge">JNTUK R23</span>
+    </a>
+    <ul class="nav-tabs" id="navTabs">
+      <li><button class="nav-tab active" data-tab="home">Home</button></li>
+      <li><button class="nav-tab" data-tab="sgpa">SGPA</button></li>
+      <li><button class="nav-tab" data-tab="cgpa">CGPA</button></li>
+      <li><button class="nav-tab" data-tab="profile">Profile</button></li>
+      <li><button class="nav-tab" data-tab="regulations">Regulations</button></li>
+      <li><button class="nav-tab" data-tab="reports">Reports</button></li>
+    </ul>
+    <div class="nav-right">
+      <div class="user-chip" id="userChip">
+        <div class="user-avatar" id="userAvatar">?</div>
+        <span class="user-name" id="userName">Loading…</span>
+      </div>
+      <button class="btn-logout" id="logoutBtn">
+        <svg viewBox="0 0 20 20" fill="currentColor" width="15" height="15">
+          <path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clip-rule="evenodd"/>
+        </svg>
+        Logout
+      </button>
+      <button class="nav-hamburger" id="hamburger" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</nav>
+<!-- Mobile nav -->
+<div class="mobile-nav" id="mobileNav">
+  <button class="nav-tab" data-tab="home">Home</button>
+  <button class="nav-tab" data-tab="sgpa">SGPA</button>
+  <button class="nav-tab" data-tab="cgpa">CGPA</button>
+  <button class="nav-tab" data-tab="profile">Profile</button>
+  <button class="nav-tab" data-tab="regulations">Regulations</button>
+  <button class="nav-tab" data-tab="reports">Reports</button>
+</div>
+
+<!-- ── MAIN CONTENT ───────────────────────────────────────────────────── -->
+<main>
+<div class="page-content">
+
+<!-- ═══════════════════════════════════════════════════════════════ HOME -->
+<section class="section-tab active" id="tab-home">
+  <div id="homeLoading" style="text-align:center;padding:60px 0;color:var(--text-muted);">
+    <div class="spinner" style="border-color:var(--border);border-top-color:var(--brand-primary);width:36px;height:36px;margin:0 auto 16px;"></div>
+    <p>Loading academic data…</p>
+  </div>
+  <div id="homeContent" style="display:none;">
+    <!-- Welcome -->
+    <div class="page-header" style="margin-bottom:var(--space-xl);">
+      <h1 id="welcomeMsg">Welcome back!</h1>
+      <p>Track your academic journey with GradeWise.</p>
+    </div>
+    <!-- KPI grid -->
+    <div class="kpi-grid" id="homeKpiGrid" style="margin-bottom:var(--space-xl);"></div>
+    <!-- Chart -->
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--space-md);margin-bottom:var(--space-xl);" id="homeChartRow">
+      <div class="chart-wrap">
+        <div class="chart-title">📈 Academic Performance Trend</div>
+        <div class="chart-canvas-wrap">
+          <canvas id="homeChart"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-heading">Quick Actions</div>
+        <div style="display:flex;flex-direction:column;gap:var(--space-sm);">
+          <button class="btn btn-primary btn-block" onclick="switchTab('sgpa')">+ Add Semester</button>
+          <button class="btn btn-ghost btn-block"   onclick="switchTab('cgpa')">📊 View CGPA</button>
+          <button class="btn btn-ghost btn-block"   onclick="switchTab('reports')">📄 Download Report</button>
+          <button class="btn btn-ghost btn-block"   onclick="switchTab('profile')">👤 My Profile</button>
+        </div>
+      </div>
+    </div>
+    <!-- Empty State -->
+    <div class="empty-state" id="homeEmpty" style="display:none;">
+      <div class="empty-icon">📚</div>
+      <div class="empty-title">No semester records yet</div>
+      <p class="empty-sub">Add your first semester to start tracking your academic performance.</p>
+      <button class="btn btn-primary" onclick="switchTab('sgpa')">+ Add First Semester</button>
+    </div>
+    <!-- About -->
+    <div class="card" style="margin-top:var(--space-xl);">
+      <div class="section-heading">About GradeWise</div>
+      <p style="font-size:14px;line-height:1.8;">
+        GradeWise is an academic performance tracking platform built exclusively for JNTUK R23 students.
+        It helps you calculate, monitor and understand your SGPA, CGPA and semester-wise progress using
+        the official JNTUK R23 grade scale and percentage conversion formula. All calculations maintain
+        full precision internally and are rounded only for display.
+      </p>
+      <div style="display:flex;gap:var(--space-sm);flex-wrap:wrap;margin-top:var(--space-md);">
+        <span class="badge badge-blue">JNTUK R23</span>
+        <span class="badge badge-success">Full Precision</span>
+        <span class="badge badge-gray">Regular &amp; Lateral Entry</span>
+        <span class="badge badge-blue">CGPA = Σ(Credits × SGPA) / ΣCredits</span>
+      </div>
+    </div>
+  </div>
+  <div id="homeError" style="display:none;"></div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ SGPA -->
+<section class="section-tab" id="tab-sgpa">
+  <div class="page-header-row">
+    <div>
+      <h1>SGPA</h1>
+      <p>Manage your semester grades and performance.</p>
+    </div>
+    <button class="btn btn-primary" id="addSemBtn">+ Add Semester</button>
+  </div>
+
+  <!-- Existing semesters list -->
+  <div id="sgpaLoading" style="text-align:center;padding:40px 0;color:var(--text-muted);">
+    <div class="spinner" style="border-color:var(--border);border-top-color:var(--brand-primary);width:32px;height:32px;margin:0 auto 12px;"></div>
+    <p>Loading semesters…</p>
+  </div>
+  <div class="semester-grid" id="semesterGrid"></div>
+  <div class="empty-state" id="sgpaEmpty" style="display:none;margin-top:var(--space-lg);">
+    <div class="empty-icon">📝</div>
+    <div class="empty-title">No Semester Records</div>
+    <p class="empty-sub">Start by adding your first semester to calculate SGPA.</p>
+    <button class="btn btn-primary" id="addSemBtnEmpty">+ Add First Semester</button>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ CGPA -->
+<section class="section-tab" id="tab-cgpa">
+  <div class="page-header">
+    <h1>CGPA</h1>
+    <p>Your cumulative academic performance across all semesters.</p>
+  </div>
+  <div id="cgpaLoading" style="text-align:center;padding:40px 0;color:var(--text-muted);">
+    <div class="spinner" style="border-color:var(--border);border-top-color:var(--brand-primary);width:32px;height:32px;margin:0 auto 12px;"></div>
+    <p>Calculating CGPA…</p>
+  </div>
+  <div id="cgpaContent" style="display:none;">
+    <div style="display:grid;grid-template-columns:1fr 2fr;gap:var(--space-lg);margin-bottom:var(--space-xl);">
+      <div class="cgpa-hero">
+        <div class="kpi-label" style="margin-bottom:8px;">Overall CGPA</div>
+        <div class="cgpa-big" id="cgpaBig">—</div>
+        <div class="cgpa-pct-big" id="cgpaPctBig">—%</div>
+        <div class="cgpa-desc">JNTUK R23 Percentage = (CGPA − 0.75) × 10</div>
+      </div>
+      <div class="kpi-grid" id="cgpaKpiGrid"></div>
+    </div>
+    <div class="chart-wrap" style="margin-bottom:var(--space-xl);">
+      <div class="chart-title">📊 Semester-wise SGPA Progression</div>
+      <div class="chart-canvas-wrap h-300">
+        <canvas id="cgpaChart"></canvas>
+      </div>
+    </div>
+    <!-- Semester-wise CGPA table -->
+    <div class="section-heading">Semester-wise Performance</div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Semester</th><th>Credits</th><th>SGPA</th>
+            <th>Sem %</th><th>Cum. CGPA</th><th>Cum. %</th>
+          </tr>
+        </thead>
+        <tbody id="cgpaTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="empty-state" id="cgpaEmpty" style="display:none;">
+    <div class="empty-icon">📊</div>
+    <div class="empty-title">No Semester Data</div>
+    <p class="empty-sub">Add at least one semester to calculate your CGPA.</p>
+    <button class="btn btn-primary" onclick="switchTab('sgpa')">+ Add Semester</button>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ PROFILE -->
+<section class="section-tab" id="tab-profile">
+  <div class="page-header">
+    <h1>Profile</h1>
+    <p>Your student information.</p>
+  </div>
+  <div style="max-width:560px;">
+    <div class="card" style="margin-bottom:var(--space-md);">
+      <div style="display:flex;align-items:center;gap:var(--space-lg);margin-bottom:var(--space-lg);">
+        <div id="profileAvatar" style="width:72px;height:72px;border-radius:50%;background:var(--grad-blue);color:white;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-size:1.6rem;font-weight:800;flex-shrink:0;">?</div>
+        <div>
+          <div id="profileName" style="font-family:var(--font-head);font-size:1.3rem;font-weight:800;">—</div>
+          <div id="profileRoll" style="font-size:13px;color:var(--text-muted);margin-top:4px;font-family:monospace;"></div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md);">
+        <div>
+          <div class="form-label">Department</div>
+          <div id="profileDept" style="font-weight:600;">—</div>
+        </div>
+        <div>
+          <div class="form-label">Student Category</div>
+          <div id="profileCategory">—</div>
+        </div>
+        <div>
+          <div class="form-label">Regulation</div>
+          <div style="font-weight:600;">JNTUK R23</div>
+        </div>
+        <div>
+          <div class="form-label">Phone</div>
+          <div id="profilePhone" style="font-weight:600;">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-heading">Academic Summary</div>
+      <div class="kpi-grid" id="profileKpiGrid"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════════════════ REGULATIONS -->
+<section class="section-tab" id="tab-regulations">
+  <div class="page-header">
+    <h1>JNTUK R23 Regulations</h1>
+    <p>Grade scale, formulas, and academic structure for JNTUK R23.</p>
+  </div>
+  <div style="max-width:760px;display:flex;flex-direction:column;gap:var(--space-md);">
+
+    <div class="reg-accordion">
+      <div class="reg-acc-head open" onclick="toggleAccordion(this)">
+        📊 Grade Scale (R23)
+        <span class="acc-icon">▼</span>
+      </div>
+      <div class="reg-acc-body open">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Grade</th><th>Grade Point</th><th>Performance</th></tr></thead>
+            <tbody>
+              <tr><td><span class="grade-chip grade-S">S</span></td><td class="td-num">10</td><td>Outstanding</td></tr>
+              <tr><td><span class="grade-chip grade-A">A</span></td><td class="td-num">9</td><td>Excellent</td></tr>
+              <tr><td><span class="grade-chip grade-B">B</span></td><td class="td-num">8</td><td>Very Good</td></tr>
+              <tr><td><span class="grade-chip grade-C">C</span></td><td class="td-num">7</td><td>Good</td></tr>
+              <tr><td><span class="grade-chip grade-D">D</span></td><td class="td-num">6</td><td>Satisfactory</td></tr>
+              <tr><td><span class="grade-chip grade-E">E</span></td><td class="td-num">5</td><td>Pass</td></tr>
+              <tr><td><span class="grade-chip grade-F">F</span></td><td class="td-num">0</td><td>Fail (Backlog)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="reg-accordion">
+      <div class="reg-acc-head" onclick="toggleAccordion(this)">
+        🧮 SGPA Calculation
+        <span class="acc-icon">▼</span>
+      </div>
+      <div class="reg-acc-body">
+        <p style="margin-bottom:var(--space-md);">SGPA is calculated for a single semester using the weighted average of credit points:</p>
+        <div class="calc-preview" style="background:#F0FDF4;border-color:#86EFAC;margin:0;">
+          <div class="calc-preview-item">
+            <div class="calc-preview-val" style="font-size:1rem;color:var(--brand-success);">SGPA = Σ (Credit × Grade Point) / Σ Credits</div>
+            <div class="calc-preview-lbl">Full precision maintained internally — rounded only for display</div>
+          </div>
+        </div>
+        <p style="margin-top:var(--space-md);font-size:14px;"><strong>Example:</strong> A subject with 3 credits and grade A (9 points) contributes 27 credit-points. The sum of all credit-points divided by total credits gives the SGPA.</p>
+      </div>
+    </div>
+
+    <div class="reg-accordion">
+      <div class="reg-acc-head" onclick="toggleAccordion(this)">
+        📈 CGPA Calculation
+        <span class="acc-icon">▼</span>
+      </div>
+      <div class="reg-acc-body">
+        <p style="margin-bottom:var(--space-md);">CGPA is the cumulative weighted average across all applicable semesters:</p>
+        <div class="calc-preview" style="background:#EFF6FF;border-color:#BFDBFE;margin:0;">
+          <div class="calc-preview-item">
+            <div class="calc-preview-val" style="font-size:1rem;">CGPA = Σ (Semester Credits × SGPA) / Σ Semester Credits</div>
+            <div class="calc-preview-lbl">Uses exact/unrounded SGPA values internally</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="reg-accordion">
+      <div class="reg-acc-head" onclick="toggleAccordion(this)">
+        💯 Percentage Conversion (R23)
+        <span class="acc-icon">▼</span>
+      </div>
+      <div class="reg-acc-body">
+        <p style="margin-bottom:var(--space-md);">The official JNTUK R23 percentage conversion formula:</p>
+        <div class="calc-preview" style="background:#FEF9C3;border-color:#FCD34D;margin:0;">
+          <div class="calc-preview-item">
+            <div class="calc-preview-val" style="font-size:1rem;color:var(--brand-gold);">Percentage = (CGPA − 0.75) × 10</div>
+            <div class="calc-preview-lbl">Also applied per-semester: Semester % = (SGPA − 0.75) × 10</div>
+          </div>
+        </div>
+        <p style="margin-top:var(--space-md);font-size:14px;"><strong>Example:</strong> CGPA of 8.50 → Percentage = (8.50 − 0.75) × 10 = <strong>77.50%</strong></p>
+      </div>
+    </div>
+
+    <div class="reg-accordion">
+      <div class="reg-acc-head" onclick="toggleAccordion(this)">
+        🎓 Regular Entry vs Lateral Entry
+        <span class="acc-icon">▼</span>
+      </div>
+      <div class="reg-acc-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-lg);">
+          <div>
+            <div style="font-weight:700;margin-bottom:8px;color:var(--brand-primary);">Regular Entry</div>
+            <p style="font-size:14px;">Applicable semesters: <strong>1-1, 1-2, 2-1, 2-2, 3-1, 3-2, 4-1, 4-2</strong></p>
+            <p style="font-size:14px;margin-top:8px;">Roll number format: <code style="font-size:12px;">XX HP 1A XXXX</code> (5th–6th chars: 1A)</p>
+          </div>
+          <div>
+            <div style="font-weight:700;margin-bottom:8px;color:var(--brand-secondary);">Lateral Entry</div>
+            <p style="font-size:14px;">Applicable semesters: <strong>2-1, 2-2, 3-1, 3-2, 4-1, 4-2</strong></p>
+            <p style="font-size:14px;margin-top:8px;">Semesters 1-1 and 1-2 are <strong>excluded</strong> from CGPA calculation.</p>
+            <p style="font-size:14px;margin-top:8px;">Roll number format: <code style="font-size:12px;">XX HP 5A XXXX</code> (5th–6th chars: 5A)</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════════════════════ REPORTS -->
+<section class="section-tab" id="tab-reports">
+  <div class="page-header-row">
+    <div>
+      <h1>Academic Report</h1>
+      <p>Your complete academic performance summary.</p>
+    </div>
+    <div style="display:flex;gap:var(--space-sm);">
+      <button class="btn btn-ghost btn-sm" onclick="printReport()">🖨 Print</button>
+      <button class="btn btn-primary btn-sm" onclick="downloadPdfReport()">⬇ Download PDF</button>
+    </div>
+  </div>
+  <div id="reportContent">
+    <div class="card" style="margin-bottom:var(--space-md);" id="reportStudentCard">
+      <div class="section-heading">Student Information</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-md);" id="reportStudentInfo"></div>
+    </div>
+    <div class="card" style="margin-bottom:var(--space-md);">
+      <div class="section-heading">Semester-wise Performance</div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr><th>Semester</th><th>Credits</th><th>SGPA</th><th>Sem %</th><th>Cum. CGPA</th><th>Cum. %</th></tr>
+          </thead>
+          <tbody id="reportTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card" id="reportSubjectSection">
+      <div class="section-heading">Detailed Subject Records</div>
+      <div id="reportSubjectDetails"></div>
+    </div>
+  </div>
+</section>
+
+</div>
+</main>
+
+<!-- ── FOOTER ──────────────────────────────────────────────────────────── -->
+<footer class="footer">
+  <div class="footer-inner">
+    <div>
+      <div class="footer-brand-name">
+        <span style="width:8px;height:8px;border-radius:50%;background:#2563EB;display:inline-block;"></span>
+        GradeWise
+      </div>
+      <p class="footer-desc">Academic Performance Platform for JNTUK R23 students. Calculate, track and understand your SGPA, CGPA and semester-wise progress.</p>
+      <div style="margin-top:var(--space-md);">
+        <div style="font-size:12px;color:#64748B;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">Developer</div>
+        <div style="color:#CBD5E1;font-weight:600;font-size:14px;">M. Vishnu Vardhan Reddy</div>
+        <div style="color:#64748B;font-size:13px;margin-top:4px;">Creator / Developer of GradeWise</div>
+      </div>
+    </div>
+    <div class="footer-col">
+      <h5>Platform</h5>
+      <a href="#" onclick="switchTab('home')">Home</a>
+      <a href="#" onclick="switchTab('sgpa')">SGPA</a>
+      <a href="#" onclick="switchTab('cgpa')">CGPA</a>
+      <a href="#" onclick="switchTab('reports')">Reports</a>
+    </div>
+    <div class="footer-col">
+      <h5>Learn</h5>
+      <a href="#" onclick="switchTab('regulations')">Regulations</a>
+      <a href="#" onclick="switchTab('profile')">Profile</a>
+    </div>
+    <div class="footer-col">
+      <h5>Links</h5>
+      <a href="https://github.com/vishnu63-csm/GradeWise" target="_blank">GitHub</a>
+      <a href="#" onclick="switchTab('regulations')">Documentation</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2026 GradeWise — Academic Performance Platform</span>
+    <a class="footer-admin-link" href="admin.html">🔐 Admin Portal</a>
+  </div>
+</footer>
+
+<!-- ═══════════════════════════════════════ ADD SEMESTER MODAL ═══════ -->
+<div class="modal-backdrop" id="addSemModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Add / Update Semester</h3>
+      <button class="modal-close" onclick="closeModal('addSemModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md);margin-bottom:var(--space-md);">
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">Student Category</label>
+          <select class="form-control" id="modalCategory">
+            <option value="Regular Entry">Regular Entry</option>
+            <option value="Lateral Entry">Lateral Entry</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">Semester</label>
+          <select class="form-control" id="modalSemester">
+            <option value="1-1">1-1</option>
+            <option value="1-2">1-2</option>
+            <option value="2-1">2-1</option>
+            <option value="2-2">2-2</option>
+            <option value="3-1">3-1</option>
+            <option value="3-2">3-2</option>
+            <option value="4-1">4-1</option>
+            <option value="4-2">4-2</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="overflow-x:auto;">
+        <table class="subject-input-table" id="subjectTable">
+          <thead>
+            <tr>
+              <th>#</th><th>Subject Name</th><th>Credits</th><th>Grade</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="subjectTableBody"></tbody>
+        </table>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:var(--space-md);" onclick="addSubjectRow()">+ Add Subject</button>
+
+      <!-- Live calculation preview -->
+      <div class="calc-preview" id="liveCalcPreview" style="display:none;margin-top:var(--space-md);">
+        <div class="calc-preview-item">
+          <div class="calc-preview-val" id="previewSgpa">—</div>
+          <div class="calc-preview-lbl">SGPA</div>
+        </div>
+        <div class="calc-preview-item">
+          <div class="calc-preview-val" id="previewPct">—</div>
+          <div class="calc-preview-lbl">Sem %</div>
+        </div>
+        <div class="calc-preview-item">
+          <div class="calc-preview-val" id="previewCredits">—</div>
+          <div class="calc-preview-lbl">Total Credits</div>
+        </div>
+      </div>
+      <div id="modalMsg" style="margin-top:var(--space-md);"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('addSemModal')">Cancel</button>
+      <button class="btn btn-primary" id="saveSemBtn" onclick="saveSemester()">
+        <span id="saveBtnText">Save Semester</span>
+        <span id="saveBtnSpinner" style="display:none;" class="spinner"></span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ SEMESTER DETAIL MODAL ═══════════ -->
+<div class="modal-backdrop" id="semDetailModal">
+  <div class="modal" style="max-width:700px;">
+    <div class="modal-head">
+      <h3 id="semDetailTitle">Semester Details</h3>
+      <button class="modal-close" onclick="closeModal('semDetailModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="kpi-grid" id="semDetailKpi" style="margin-bottom:var(--space-lg);"></div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr><th>#</th><th>Subject</th><th>Credits</th><th>Grade</th><th>Grade Point</th><th>Points</th></tr>
+          </thead>
+          <tbody id="semDetailBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="semDetailDelBtn">Delete Semester</button>
+      <button class="btn btn-ghost" onclick="closeModal('semDetailModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

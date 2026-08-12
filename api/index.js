@@ -26,11 +26,13 @@ app.use(express.static(PUBLIC_DIR, {
 }));
 
 // ── API routes ────────────────────────────────────────────────────────────────
-const authRoutes = require("../routes/auth");
-const apiRoutes  = require("../routes/api");
+const authRoutes  = require("../routes/auth");
+const apiRoutes   = require("../routes/api");
+const adminRoutes = require("../routes/admin");
 
-app.use("/api/auth", authRoutes);
-app.use("/api",      apiRoutes);
+app.use("/api/auth",  authRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api",       apiRoutes);
 
 // Health check
 app.get("/health", (_req, res) => {
