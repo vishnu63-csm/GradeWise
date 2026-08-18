@@ -50,26 +50,52 @@ function timeAgo(dateStr) {
   return d.toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" });
 }
 
-/* ── Navigation ─────────────────────────────────────────────────────────── */
-function switchTab(name) {
-  // Sidebar buttons
+/* ── Navigation & View Router ────────────────────────────────────────────── */
+const VALID_VIEWS = ["home", "results", "sgpa", "cgpa", "profile", "regulations"];
+
+function switchTab(name, updateHash = true) {
+  // Normalize alias
+  const target = (name === "dashboard" || name === "home") ? "home" : name;
+  if (!VALID_VIEWS.includes(target)) return;
+
+  // Update URL hash without extra history entries if triggered programmatically
+  if (updateHash) {
+    const hash = target === "home" ? "dashboard" : target;
+    if (window.location.hash !== `#${hash}`) {
+      window.location.hash = hash;
+    }
+  }
+
+  // 1. Remove active class from all sidebar buttons
   document.querySelectorAll(".sidebar-btn[data-tab]").forEach(b => {
-    b.classList.toggle("active", b.dataset.tab === name);
+    b.classList.toggle("active", b.dataset.tab === target);
   });
-  // Content sections
+
+  // 2. Hide all view sections, show ONLY target section
   document.querySelectorAll(".section-tab").forEach(s => {
-    s.classList.toggle("active", s.id === `tab-${name}`);
+    const isTarget = s.id === `tab-${target}`;
+    s.classList.toggle("active", isTarget);
+    s.style.display = isTarget ? "block" : "none";
   });
-  // Close sidebar on mobile
-  document.getElementById("sidebar").classList.remove("open");
+
+  // 3. Close mobile sidebar drawer & scroll to top
+  document.getElementById("sidebar")?.classList.remove("open");
   window.scrollTo(0, 0);
 
-  if (name === "results") loadResults();
-  if (name === "sgpa")    renderSgpa();
-  if (name === "cgpa")    renderCgpa();
-  if (name === "profile") renderProfile();
+  // 4. Trigger section data loader
+  if (target === "home")    loadHome();
+  if (target === "results") loadResults();
+  if (target === "sgpa")    renderSgpa();
+  if (target === "cgpa")    renderCgpa();
+  if (target === "profile") renderProfile();
 }
 window.switchTab = switchTab;
+
+function handleHashRoute() {
+  const hash = (window.location.hash || "").replace("#", "").toLowerCase();
+  const view = (hash === "dashboard" || hash === "" || !hash) ? "home" : hash;
+  switchTab(view, false);
+}
 
 function openModal(id)  { document.getElementById(id).classList.add("open"); }
 function closeModal(id) { document.getElementById(id).classList.remove("open"); }
@@ -416,5 +442,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.location.href = "login.html";
   });
 
+  // Hash change routing for browser back/forward buttons
+  window.addEventListener("hashchange", handleHashRoute);
+
+  // Initial load
   await loadHome();
+  handleHashRoute();
 });

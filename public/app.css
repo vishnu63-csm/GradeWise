@@ -296,6 +296,14 @@ body {
 .user-info-text { font-size: 13px; font-weight: 600; color: var(--text-main); line-height: 1.2; }
 .user-info-sub { font-size: 10.5px; color: var(--text-muted); font-family: var(--font-mono); }
 
+/* ── Section Views & Tab Switching ──────────────────────────────────────── */
+.section-tab {
+  display: none !important;
+}
+.section-tab.active {
+  display: block !important;
+}
+
 .content-body {
   padding: 28px;
   flex: 1;

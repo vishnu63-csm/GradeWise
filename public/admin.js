@@ -437,19 +437,48 @@ async function loadStudents() {
   }
 }
 
-function switchTab(name) {
-  document.querySelectorAll(".sidebar-btn[data-tab]").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
-  document.querySelectorAll(".section-tab").forEach(s => s.classList.toggle("active", s.id === `tab-${name}`));
+/* ── Navigation & View Router ────────────────────────────────────────────── */
+const ADMIN_VIEWS = ["overview", "uploads", "upload-wizard", "students", "analytics", "rules"];
+
+function switchTab(name, updateHash = true) {
+  const target = (name === "dashboard" || name === "overview") ? "overview" : name;
+  if (!ADMIN_VIEWS.includes(target)) return;
+
+  if (updateHash) {
+    const hash = target === "overview" ? "overview" : target;
+    if (window.location.hash !== `#${hash}`) {
+      window.location.hash = hash;
+    }
+  }
+
+  // 1. Sidebar buttons
+  document.querySelectorAll(".sidebar-btn[data-tab]").forEach(t => {
+    t.classList.toggle("active", t.dataset.tab === target);
+  });
+
+  // 2. Hide all view sections, show ONLY target section
+  document.querySelectorAll(".section-tab").forEach(s => {
+    const isTarget = s.id === `tab-${target}`;
+    s.classList.toggle("active", isTarget);
+    s.style.display = isTarget ? "block" : "none";
+  });
+
   document.getElementById("sidebar")?.classList.remove("open");
   window.scrollTo(0, 0);
 
-  if (name === "overview") loadOverview();
-  if (name === "uploads") loadUploadsList();
-  if (name === "rules") loadRules();
-  if (name === "analytics") loadAnalytics();
-  if (name === "students") loadStudents();
+  if (target === "overview")  loadOverview();
+  if (target === "uploads")   loadUploadsList();
+  if (target === "rules")     loadRules();
+  if (target === "analytics") loadAnalytics();
+  if (target === "students")  loadStudents();
 }
 window.switchTab = switchTab;
+
+function handleAdminHashRoute() {
+  const hash = (window.location.hash || "").replace("#", "").toLowerCase();
+  const view = (hash === "overview" || hash === "" || !hash) ? "overview" : hash;
+  switchTab(view, false);
+}
 
 /* ═══════════════════════════════════════════════════════════ INIT ════════ */
 document.addEventListener("DOMContentLoaded", () => {
@@ -469,5 +498,7 @@ document.addEventListener("DOMContentLoaded", () => {
     window.location.href = "admin-login.html";
   });
 
+  window.addEventListener("hashchange", handleAdminHashRoute);
   loadOverview();
+  handleAdminHashRoute();
 });
