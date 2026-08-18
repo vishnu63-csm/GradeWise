@@ -126,10 +126,11 @@ function extractSubjectsFromLines(lines) {
       externalMarks = marksMatches[0];
     }
 
-    // Extract subject name: remove code, marks, grade, credits from line
+    // Extract subject name: remove code, marks, grade, credits, and keywords from line
     let name = trimmed
       .replace(codeMatch ? codeMatch[0] : "", "")
       .replace(gradeMatch[0], "")
+      .replace(/\b(PASS|FAIL|ABSENT|COMPLETED|PROMOTED)\b/gi, "")
       .replace(/\b\d+(?:\.\d+)?\b/g, "")
       .replace(/[^A-Za-z\s&().-]/g, "")
       .replace(/\s+/g, " ")
@@ -234,8 +235,6 @@ async function parseResultPdf(bufferOrText, adminMeta = {}) {
   }
 
   // ── Step 4: Split text into per-student regions ──────────────────────────
-  // Strategy: find the position of each roll number in the text, then
-  // extract the block of text from that position to the next roll number.
   const lines = text.split("\n");
   const lineRollMap = new Map(); // rollNumber → line index
 
@@ -249,13 +248,20 @@ async function parseResultPdf(bufferOrText, adminMeta = {}) {
     }
   }
 
+  // Sort uniqueRolls by their APPEARANCE ORDER in the document (line index)
+  const orderedRolls = [...uniqueRolls].sort((a, b) => {
+    const lineA = lineRollMap.get(a) ?? 0;
+    const lineB = lineRollMap.get(b) ?? 0;
+    return lineA - lineB;
+  });
+
   // ── Step 5: For each roll, extract subject data ──────────────────────────
   const extractedStudents = [];
 
-  for (let ri = 0; ri < uniqueRolls.length; ri++) {
-    const roll = uniqueRolls[ri];
+  for (let ri = 0; ri < orderedRolls.length; ri++) {
+    const roll = orderedRolls[ri];
     const startLine = lineRollMap.get(roll) ?? -1;
-    const nextRoll  = uniqueRolls[ri + 1];
+    const nextRoll  = orderedRolls[ri + 1];
     const endLine   = nextRoll && lineRollMap.has(nextRoll)
       ? lineRollMap.get(nextRoll)
       : Math.min(startLine + 30, lines.length);
@@ -265,12 +271,18 @@ async function parseResultPdf(bufferOrText, adminMeta = {}) {
       ? lines.slice(startLine, endLine)
       : [];
 
-    // Try to find student name (first non-roll alphabetic line near the roll)
+    // Try to find student name (line containing roll or next line)
     let studentName = "";
     for (const line of studentLines.slice(0, 5)) {
-      const clean = line.replace(ROLL_REGEX, "").replace(/\d/g, "").replace(/[^A-Za-z\s.]/g, "").trim();
+      const clean = line
+        .replace(ROLL_REGEX, "")
+        .replace(/\b(HTNO|ROLL|NAME|STUDENT|NO|HALL|TICKET|REGISTRATION|NUMBER)\b/gi, "")
+        .replace(/\d/g, "")
+        .replace(/[^A-Za-z\s.]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
       if (clean.length >= 3 && /[A-Za-z]{2,}/.test(clean)) {
-        studentName = clean.replace(/\s+/g, " ").trim();
+        studentName = clean;
         break;
       }
     }
