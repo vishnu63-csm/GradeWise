@@ -542,7 +542,7 @@ router.get("/dashboard", async (req, res) => {
 // ── GET /api/admin/analytics ──────────────────────────────────────────────────
 router.get("/analytics", async (req, res) => {
   try {
-    const { semester, regulation, department, academicYear, admissionType, uploadId } = req.query;
+    const { semester, regulation, department, academicYear, admissionType, examSession, uploadId } = req.query;
 
     const match = { isPublished: true };
     if (semester)      match.semester      = semester;
@@ -550,6 +550,7 @@ router.get("/analytics", async (req, res) => {
     if (department)    match.department    = department;
     if (academicYear)  match.academicYear  = academicYear;
     if (admissionType) match.admissionType = admissionType;
+    if (examSession)   match.examSession   = examSession;
     if (uploadId)      match.uploadId      = new mongoose.Types.ObjectId(uploadId);
 
     // Overall stats
@@ -566,19 +567,20 @@ router.get("/analytics", async (req, res) => {
       }},
     ]);
 
-    // Department breakdown
+    // Department & Admission Type breakdown (Regular vs LE)
     const deptBreakdown = await StudentResult.aggregate([
       { $match: match },
       { $group: {
         _id: { dept: "$department", type: "$admissionType" },
-        total:  { $sum: 1 },
-        passed: { $sum: { $cond: ["$passed", 1, 0] } },
-        avgSgpa: { $avg: "$sgpa" },
+        total:    { $sum: 1 },
+        passed:   { $sum: { $cond: ["$passed", 1, 0] } },
+        avgSgpa:  { $avg: "$sgpa" },
+        backlogs: { $sum: "$backlogCount" },
       }},
       { $sort: { "_id.dept": 1, "_id.type": 1 } },
     ]);
 
-    // Subject analysis (pass rate per subject)
+    // Subject analysis (pass rate per subject & most failed subjects)
     const subjectStats = await StudentResult.aggregate([
       { $match: match },
       { $unwind: "$subjects" },
@@ -594,7 +596,7 @@ router.get("/analytics", async (req, res) => {
       { $limit: 50 },
     ]);
 
-    // Top students
+    // Top performing students
     const topStudents = await StudentResult.find(match)
       .sort({ sgpa: -1 })
       .limit(10)
@@ -607,6 +609,33 @@ router.get("/analytics", async (req, res) => {
       .limit(20)
       .select("rollNumber studentName sgpa backlogCount failedSubjects department semester")
       .lean();
+
+    // Student improvement tracking across semesters
+    const studentImprovement = await StudentResult.aggregate([
+      { $match: { isPublished: true } },
+      { $sort: { rollNumber: 1, semester: 1 } },
+      { $group: {
+        _id: "$rollNumber",
+        name: { $first: "$studentName" },
+        dept: { $first: "$department" },
+        semesters: { $push: { semester: "$semester", sgpa: "$sgpa" } }
+      }},
+      { $match: { "semesters.1": { $exists: true } } },
+      { $project: {
+        rollNumber: "$_id",
+        name: 1, dept: 1,
+        prevSem: { $arrayElemAt: ["$semesters", -2] },
+        latestSem: { $arrayElemAt: ["$semesters", -1] }
+      }},
+      { $project: {
+        rollNumber: 1, name: 1, dept: 1,
+        prevSem: "$prevSem.semester", prevSgpa: "$prevSem.sgpa",
+        latestSem: "$latestSem.semester", latestSgpa: "$latestSem.sgpa",
+        improvement: { $subtract: ["$latestSem.sgpa", "$prevSem.sgpa"] }
+      }},
+      { $sort: { improvement: -1 } },
+      { $limit: 10 }
+    ]);
 
     const s = stats[0] || {};
     res.json({
@@ -622,11 +651,13 @@ router.get("/analytics", async (req, res) => {
       subjectStats,
       topStudents,
       backlogStudents,
+      studentImprovement,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // ── GET /api/admin/students ───────────────────────────────────────────────────
 router.get("/students", async (req, res) => {

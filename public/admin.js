@@ -278,19 +278,131 @@ window.deleteRule = deleteRule;
 /* ═══════════════════════════════════════════════════════════ ANALYTICS ════ */
 async function loadAnalytics() {
   const container = document.getElementById("analyticsContent");
+  container.innerHTML = `<div class="loading-state"><p>Loading analytics and aggregations...</p></div>`;
+
   try {
-    const data = await adminFetch("/api/admin/analytics");
+    // Read filter values if controls exist
+    const semester    = document.getElementById("anSem")?.value || "";
+    const regulation  = document.getElementById("anReg")?.value || "";
+    const department  = document.getElementById("anDept")?.value || "";
+    const acadYear    = document.getElementById("anYear")?.value || "";
+    const admType     = document.getElementById("anAdmType")?.value || "";
+    const examSession = document.getElementById("anSession")?.value || "";
+
+    const query = new URLSearchParams();
+    if (semester)    query.set("semester", semester);
+    if (regulation)  query.set("regulation", regulation);
+    if (department)  query.set("department", department);
+    if (acadYear)    query.set("academicYear", acadYear);
+    if (admType)     query.set("admissionType", admType);
+    if (examSession) query.set("examSession", examSession);
+
+    const data = await adminFetch(`/api/admin/analytics?${query.toString()}`);
+
     container.innerHTML = `
+      <!-- Filters bar -->
+      <div class="card" style="margin-bottom:var(--space-xl);padding:var(--space-md);">
+        <div class="section-heading" style="margin-bottom:12px;">Analytics Filters</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:12px;align-items:end;">
+          <div><label class="field-label">Semester</label><select id="anSem" class="field-input" onchange="loadAnalytics()"><option value="">All</option><option value="1-1">1-1</option><option value="1-2">1-2</option><option value="2-1">2-1</option><option value="2-2">2-2</option><option value="3-1">3-1</option><option value="3-2">3-2</option><option value="4-1">4-1</option><option value="4-2">4-2</option></select></div>
+          <div><label class="field-label">Regulation</label><select id="anReg" class="field-input" onchange="loadAnalytics()"><option value="">All</option><option value="R23">R23</option><option value="R20">R20</option></select></div>
+          <div><label class="field-label">Department</label><input id="anDept" class="field-input" placeholder="e.g. CSE" onchange="loadAnalytics()"/></div>
+          <div><label class="field-label">Admission Type</label><select id="anAdmType" class="field-input" onchange="loadAnalytics()"><option value="">All</option><option value="Regular Entry">Regular Entry</option><option value="Lateral Entry">Lateral Entry</option></select></div>
+          <div><label class="field-label">Exam Session</label><input id="anSession" class="field-input" placeholder="e.g. April 2026" onchange="loadAnalytics()"/></div>
+          <div><button class="btn btn-ghost btn-sm" onclick="clearAnalyticsFilters()">Reset Filters</button></div>
+        </div>
+      </div>
+
+      <!-- Overview KPIs -->
       <div class="kpi-grid" style="margin-bottom:var(--space-xl);">
         <div class="kpi-card accent-blue"><div class="kpi-value">${data.total || 0}</div><div class="kpi-label">Total Student Results</div></div>
-        <div class="kpi-card accent-green"><div class="kpi-value">${fmtPct(data.passPercentage)}</div><div class="kpi-label">Overall Pass Percentage</div></div>
+        <div class="kpi-card accent-green"><div class="kpi-value">${fmtPct(data.passPercentage)}</div><div class="kpi-label">Pass Rate (${data.passed}/${data.total})</div></div>
         <div class="kpi-card accent-gold"><div class="kpi-value">${fmt2(data.averageSgpa)}</div><div class="kpi-label">Average SGPA</div></div>
         <div class="kpi-card accent-ind"><div class="kpi-value">${data.totalBacklogs || 0}</div><div class="kpi-label">Total Backlogs</div></div>
+      </div>
+
+      <!-- Department & Regular vs LE Breakdown -->
+      <div class="card" style="margin-bottom:var(--space-xl);">
+        <div class="section-heading" style="margin-bottom:var(--space-md);">Department &amp; Entry Type Breakdown</div>
+        ${(data.deptBreakdown||[]).length === 0 ? '<p class="empty-sub">No department breakdown available.</p>' : `
+        <table class="data-table">
+          <thead><tr><th>Department</th><th>Admission Type</th><th>Students</th><th>Passed</th><th>Pass Rate</th><th>Avg SGPA</th><th>Backlogs</th></tr></thead>
+          <tbody>${data.deptBreakdown.map(d=>`<tr>
+            <td><strong>${esc(d._id.dept||"General")}</strong></td>
+            <td><span class="badge badge-blue">${esc(d._id.type||"Regular Entry")}</span></td>
+            <td>${d.total}</td>
+            <td>${d.passed}</td>
+            <td><strong>${fmtPct((d.passed/d.total)*100)}</strong></td>
+            <td>${fmt2(d.avgSgpa)}</td>
+            <td>${d.backlogs||0}</td>
+          </tr>`).join("")}</tbody>
+        </table>`}
+      </div>
+
+      <!-- Subject Performance & Most Failed Subjects -->
+      <div class="card" style="margin-bottom:var(--space-xl);">
+        <div class="section-heading" style="margin-bottom:var(--space-md);">Subject Performance Analysis</div>
+        ${(data.subjectStats||[]).length === 0 ? '<p class="empty-sub">No subject statistics available.</p>' : `
+        <table class="data-table">
+          <thead><tr><th>Subject Code</th><th>Subject Name</th><th>Total Enrolled</th><th>Passed</th><th>Failed</th><th>Pass Rate</th></tr></thead>
+          <tbody>${data.subjectStats.map(s=>`<tr>
+            <td><code>${esc(s._id.code||"—")}</code></td>
+            <td>${esc(s._id.name)}</td>
+            <td>${s.total}</td>
+            <td><span class="text-success">${s.passed}</span></td>
+            <td><span class="${s.failed>0?"text-danger":""}">${s.failed}</span></td>
+            <td><span class="badge ${s.passRate>=75?"badge-success":s.passRate>=50?"badge-warning":"badge-danger"}">${fmtPct(s.passRate)}</span></td>
+          </tr>`).join("")}</tbody>
+        </table>`}
+      </div>
+
+      <!-- Backlog Analysis -->
+      <div class="card" style="margin-bottom:var(--space-xl);">
+        <div class="section-heading" style="margin-bottom:var(--space-md);">Students with Active Backlogs</div>
+        ${(data.backlogStudents||[]).length === 0 ? '<p class="empty-sub">🎉 No active backlog records found!</p>' : `
+        <table class="data-table">
+          <thead><tr><th>Roll Number</th><th>Student Name</th><th>Department</th><th>Semester</th><th>Backlog Count</th><th>Failed Subjects</th></tr></thead>
+          <tbody>${data.backlogStudents.map(b=>`<tr>
+            <td><code>${esc(b.rollNumber)}</code></td>
+            <td>${esc(b.studentName||"—")}</td>
+            <td>${esc(b.department||"—")}</td>
+            <td>${esc(b.semester)}</td>
+            <td><span class="badge badge-danger">${b.backlogCount}</span></td>
+            <td>${(b.failedSubjects||[]).map(esc).join(", ")||"—"}</td>
+          </tr>`).join("")}</tbody>
+        </table>`}
+      </div>
+
+      <!-- Student Improvement Tracking -->
+      <div class="card">
+        <div class="section-heading" style="margin-bottom:var(--space-md);">Student Semester Improvement Tracking</div>
+        ${(data.studentImprovement||[]).length === 0 ? '<p class="empty-sub">Improvement comparison will appear when historical semester results exist.</p>' : `
+        <table class="data-table">
+          <thead><tr><th>Roll Number</th><th>Student Name</th><th>Dept</th><th>Prev Sem (${esc(data.studentImprovement[0]?.prevSem||"")})</th><th>Latest Sem (${esc(data.studentImprovement[0]?.latestSem||"")})</th><th>SGPA Improvement</th></tr></thead>
+          <tbody>${data.studentImprovement.map(i=>`<tr>
+            <td><code>${esc(i.rollNumber)}</code></td>
+            <td>${esc(i.name||"—")}</td>
+            <td>${esc(i.dept||"—")}</td>
+            <td>${fmt2(i.prevSgpa)}</td>
+            <td>${fmt2(i.latestSgpa)}</td>
+            <td><strong class="${i.improvement>=0?"text-success":"text-danger"}">${i.improvement>=0?"+":""}${fmt2(i.improvement)}</strong></td>
+          </tr>`).join("")}</tbody>
+        </table>`}
       </div>`;
   } catch(e) {
     container.innerHTML = `<div class="alert alert-error">⚠ ${esc(e.message)}</div>`;
   }
 }
+
+function clearAnalyticsFilters() {
+  ["anSem","anReg","anDept","anYear","anAdmType","anSession"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+  loadAnalytics();
+}
+window.clearAnalyticsFilters = clearAnalyticsFilters;
+
 
 /* ═══════════════════════════════════════════════════════════ STUDENTS ═════ */
 async function loadStudents() {
