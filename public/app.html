@@ -244,19 +244,23 @@
 
           <!-- Quick Actions -->
           <div class="card-box">
-            <div class="card-title">Quick Actions</div>
-            <div style="display:flex;flex-direction:column;gap:10px;">
-              <button class="btn btn-secondary" style="justify-content:flex-start;" onclick="switchTab('results')">
-                <span style="font-size:16px;">📋</span> View All Results
+            <div class="card-title" style="margin-bottom: 16px;">Quick Actions</div>
+            <div class="quick-actions-grid">
+              <button class="action-card-btn" onclick="switchTab('results')">
+                <span style="font-size:18px;">📋</span>
+                <span style="font-size:12px;margin-top:6px;display:block;">View All Results →</span>
               </button>
-              <button class="btn btn-secondary" style="justify-content:flex-start;" onclick="switchTab('sgpa')">
-                <span style="font-size:16px;">➕</span> Add Semester Result
+              <button class="action-card-btn" onclick="switchTab('sgpa')">
+                <span style="font-size:18px;">➕</span>
+                <span style="font-size:12px;margin-top:6px;display:block;">Add Result →</span>
               </button>
-              <button class="btn btn-secondary" style="justify-content:flex-start;" onclick="switchTab('cgpa')">
-                <span style="font-size:16px;">📊</span> Calculate CGPA
+              <button class="action-card-btn" onclick="switchTab('cgpa')">
+                <span style="font-size:18px;">📊</span>
+                <span style="font-size:12px;margin-top:6px;display:block;">Calculate CGPA →</span>
               </button>
-              <button class="btn btn-secondary" style="justify-content:flex-start;" onclick="switchTab('profile')">
-                <span style="font-size:16px;">👤</span> Update Profile
+              <button class="action-card-btn" onclick="switchTab('profile')">
+                <span style="font-size:18px;">👤</span>
+                <span style="font-size:12px;margin-top:6px;display:block;">Update Profile →</span>
               </button>
             </div>
           </div>
@@ -363,10 +367,10 @@
 
 </div>
 
-<!-- ── RESULT DETAIL MODAL ───────────────────────────────────────────────── -->
+<!-- ── RESULT DETAIL DRAWER ───────────────────────────────────────────────── -->
 <div class="modal-overlay" id="resultDetailModal">
-  <div class="modal card-box" style="max-width:800px;width:90%;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border-color);padding-bottom:12px;">
+  <div class="modal-drawer">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;border-bottom:1px solid var(--border-color);padding-bottom:16px;">
       <h2 class="card-title" id="resultDetailTitle" style="margin:0;">Result Detail</h2>
       <button class="icon-btn" onclick="closeModal('resultDetailModal')">✕</button>
     </div>

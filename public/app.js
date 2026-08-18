@@ -104,6 +104,10 @@ window.closeModal = closeModal;
 /* ═══════════════════════════════════════════════════════════ HOME DASHBOARD ═ */
 async function loadHome() {
   try {
+    // Show skeleton layout in Latest Result Card while loading
+    document.getElementById("latestResultBanner").innerHTML = `
+      <div class="featured-result-card skeleton-box" style="height:220px;"></div>`;
+
     studentData = await apiFetch("/api/student");
     
     // User info in topbar
@@ -117,7 +121,7 @@ async function loadHome() {
     // Greeting
     const hour = new Date().getHours();
     const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-    document.getElementById("welcomeMsg").textContent = `${greeting}, ${name} 👋`;
+    document.getElementById("welcomeMsg").textContent = `${greeting}, ${name.split(" ")[0]} 👋`;
 
     // Calculate metrics
     const sems = getApplicableSemesters(studentData);
@@ -126,26 +130,56 @@ async function loadHome() {
     const latestSem = sems.length > 0 ? sems[sems.length - 1] : null;
     const backlogs  = sems.reduce((acc, s) => acc + (s.subjects || []).filter(sub => sub.grade === "F" || sub.grade === "Ab").length, 0);
 
-    // Update KPI cards
+    // Dynamic CGPA comparison trend calculation
+    let cgpaTrendText = "Cumulative Index";
+    if (sems.length > 1 && cgpa) {
+      const prevSemCount = sems.length - 1;
+      let prevCumulCred = 0, prevCumulPoints = 0;
+      for (let i = 0; i < prevSemCount; i++) {
+        prevCumulCred += sems[i].credits;
+        prevCumulPoints += sems[i].credits * sems[i].sgpa;
+      }
+      const prevCgpa = prevCumulCred > 0 ? prevCumulPoints / prevCumulCred : 0;
+      const diff = cgpa - prevCgpa;
+      if (diff > 0) cgpaTrendText = `↑ ${diff.toFixed(2)} from previous sem`;
+      else if (diff < 0) cgpaTrendText = `↓ ${Math.abs(diff).toFixed(2)} from previous sem`;
+      else cgpaTrendText = "Same as previous sem";
+    }
+
+    // Update KPI card values & subtitles
     document.getElementById("kpiCgpa").textContent     = cgpa != null ? fmt2(cgpa) : "—";
     document.getElementById("kpiSgpa").textContent     = latestSem ? fmt2(latestSem.sgpa) : "—";
     document.getElementById("kpiPct").textContent      = pct != null ? fmtPct(pct) : "—";
     document.getElementById("kpiBacklogs").textContent = backlogs;
 
-    // Load published results
+    // Update subtitles/captions
+    const kpiCards = document.getElementById("homeKpiGrid").querySelectorAll(".metric-card");
+    if (kpiCards[0]) kpiCards[0].querySelector(".metric-footer").innerHTML = `<span>${cgpaTrendText}</span>`;
+    if (kpiCards[1]) kpiCards[1].querySelector(".metric-footer").innerHTML = `<span>${latestSem ? `${latestSem.semester} Semester` : "No semesters added"}</span>`;
+    if (kpiCards[2]) kpiCards[2].querySelector(".metric-footer").innerHTML = `<span>Based on JNTUK R23 formula</span>`;
+    if (kpiCards[3]) kpiCards[3].querySelector(".metric-footer").innerHTML = `<span>${backlogs > 0 ? `⚠️ ${backlogs} backlogs pending` : "All clear 🎉"}</span>`;
+
+    // Fetch published results
+    let latestPubResult = null;
     try {
       const res = await apiFetch("/api/student/results");
       publishedResults = res.results || [];
       if (publishedResults.length > 0) {
         publishedResults.sort((a,b) => semOrd(a.semester) - semOrd(b.semester));
-        renderLatestFeaturedResult(publishedResults[publishedResults.length - 1]);
-        renderJourneyNodes(publishedResults);
+        latestPubResult = publishedResults[publishedResults.length - 1];
+        renderLatestFeaturedResult(latestPubResult);
       } else {
-        renderJourneyNodesFromSemesters(sems);
+        renderLatestManualResult(latestSem);
       }
     } catch(_) {
-      renderJourneyNodesFromSemesters(sems);
+      renderLatestManualResult(latestSem);
     }
+
+    // Render timeline nodes
+    renderJourneyNodes(sems, publishedResults);
+
+    // Dynamic Notifications
+    populateDynamicNotifications(latestSem, latestPubResult, backlogs);
 
     if (sems.length > 0) {
       renderHomeChart(sems);
@@ -165,61 +199,153 @@ function getApplicableSemesters(sd) {
 
 function renderLatestFeaturedResult(result) {
   if (!result) return;
-  document.getElementById("featuredSemTitle").textContent = `${result.semester} Semester`;
-  document.getElementById("featuredSemMeta").textContent  = `${result.regulation || "R23"} • ${result.examType || "Regular"} • ${result.examSession || "Official Exam"}`;
-  document.getElementById("featuredSgpa").textContent     = fmt2(result.sgpa);
-  document.getElementById("featuredPct").textContent      = fmtPct(result.percentage);
-  document.getElementById("featuredCredits").textContent  = result.totalCredits || 0;
-  document.getElementById("featuredBacklogs").textContent = result.backlogCount || 0;
-  document.getElementById("featuredTime").textContent     = result.publishedAt ? `Published ${timeAgo(result.publishedAt)}` : "Published Result";
-
   const isPass = result.passed;
-  document.getElementById("featuredStatusBadge").innerHTML = `
-    <span class="badge ${isPass ? "badge-pass" : "badge-fail"}" style="font-size:14px;padding:6px 16px;">
-      ${isPass ? "PASS" : "FAIL"}
-    </span>`;
+  const statusClass = isPass ? "badge-pass" : "badge-fail";
+  const statusText  = isPass ? "PASS" : "FAIL";
+
+  document.getElementById("latestResultBanner").innerHTML = `
+    <div class="featured-result-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+        <div>
+          <div class="featured-badge">🎓 LATEST PUBLISHED RESULT</div>
+          <div class="featured-title" style="font-size:1.6rem;">${esc(result.semester)} Semester</div>
+          <div class="featured-sub">${esc(result.regulation||"R23")} • ${esc(result.examType||"Regular")} • ${esc(result.examSession||"")}</div>
+        </div>
+        <div>
+          <span class="badge ${statusClass}" style="font-size:14px;padding:6px 16px;">${statusText}</span>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(110px, 1fr));gap:12px;background:rgba(255,255,255,0.1);padding:16px;border-radius:12px;margin-bottom:16px;backdrop-filter:blur(4px);">
+        <div><div style="font-size:11px;color:#C7D2FE;text-transform:uppercase;font-weight:600;">SGPA</div><div style="font-family:var(--font-head);font-size:1.4rem;font-weight:800;color:white;">${fmt2(result.sgpa)}</div></div>
+        <div><div style="font-size:11px;color:#C7D2FE;text-transform:uppercase;font-weight:600;">Percentage</div><div style="font-family:var(--font-head);font-size:1.4rem;font-weight:800;color:white;">${fmtPct(result.percentage)}</div></div>
+        <div><div style="font-size:11px;color:#C7D2FE;text-transform:uppercase;font-weight:600;">Credits</div><div style="font-family:var(--font-head);font-size:1.4rem;font-weight:800;color:white;">${result.totalCredits||0}</div></div>
+        <div><div style="font-size:11px;color:#C7D2FE;text-transform:uppercase;font-weight:600;">Backlogs</div><div style="font-family:var(--font-head);font-size:1.4rem;font-weight:800;color:${result.backlogCount>0?"#FCA5A5":"white"};">${result.backlogCount||0}</div></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+        <span style="font-size:12px;color:#C7D2FE;">Published ${timeAgo(result.publishedAt)}</span>
+        <button class="btn btn-primary" style="background:white;color:#1E3A8A;font-weight:700;" onclick="openResultDetail('${result._id}')">View Full Result →</button>
+      </div>
+    </div>`;
 }
 
-function renderJourneyNodes(pubResults) {
+function renderLatestManualResult(latestSem) {
+  const banner = document.getElementById("latestResultBanner");
+  if (!latestSem) {
+    banner.innerHTML = `
+      <div class="card-box" style="padding:32px;text-align:center;background:var(--bg-card);border:1px solid var(--border-color);">
+        <div style="font-size:2.5rem;margin-bottom:8px;">🔔</div>
+        <h3 class="card-title" style="justify-content:center;margin-bottom:4px;">No published results yet</h3>
+        <p style="color:var(--text-sub);font-size:13px;max-width:380px;margin:0 auto;">Results published by your institution will automatically appear here matched to your roll number.</p>
+      </div>`;
+    return;
+  }
+
+  const pct = (latestSem.sgpa - 0.75) * 10;
+  banner.innerHTML = `
+    <div class="featured-result-card" style="background:linear-gradient(135deg, #4F46E5 0%, #3730A3 100%);">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+        <div>
+          <div class="featured-badge" style="background:rgba(255,255,255,0.2);">📝 LATEST MANUAL ENTRY</div>
+          <div class="featured-title" style="font-size:1.6rem;">${latestSem.semester} Semester</div>
+          <div class="featured-sub">Manual record values</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(110px, 1fr));gap:12px;background:rgba(255,255,255,0.1);padding:16px;border-radius:12px;margin-bottom:16px;backdrop-filter:blur(4px);">
+        <div><div style="font-size:11px;color:#E0E7FF;text-transform:uppercase;font-weight:600;">SGPA</div><div style="font-family:var(--font-head);font-size:1.4rem;font-weight:800;color:white;">${fmt2(latestSem.sgpa)}</div></div>
+        <div><div style="font-size:11px;color:#E0E7FF;text-transform:uppercase;font-weight:600;">Percentage</div><div style="font-family:var(--font-head);font-size:1.4rem;font-weight:800;color:white;">${fmtPct(pct)}</div></div>
+        <div><div style="font-size:11px;color:#E0E7FF;text-transform:uppercase;font-weight:600;">Credits</div><div style="font-family:var(--font-head);font-size:1.4rem;font-weight:800;color:white;">${latestSem.credits||0}</div></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+        <span style="font-size:12px;color:#E0E7FF;">User Manual Grade Record</span>
+        <button class="btn btn-primary" style="background:white;color:#312E81;font-weight:700;" onclick="switchTab('sgpa')">Manage Semesters →</button>
+      </div>
+    </div>`;
+}
+
+function renderJourneyNodes(manualSems, pubResults) {
   const row = document.getElementById("journeyNodeRow");
   if (!row) return;
-  const pubSems = new Set(pubResults.map(r => r.semester));
-  const latestSem = pubResults.length > 0 ? pubResults[pubResults.length - 1].semester : null;
+
+  const userSemsMap = new Map(manualSems.map(s => [s.semester, s]));
+  const pubSemsMap = new Map(pubResults.map(r => [r.semester, r]));
+  
+  const allCompletedSems = new Set([...userSemsMap.keys(), ...pubSemsMap.keys()]);
+  const latestSem = [...allCompletedSems].sort((a,b) => semOrd(a) - semOrd(b)).pop();
 
   row.innerHTML = SEMESTERS_ALL.map(sem => {
-    const isCompleted = pubSems.has(sem);
+    const isCompleted = allCompletedSems.has(sem);
     const isLatest    = sem === latestSem;
+    let sgpaDisplay   = "";
     let cls = "";
+    
     if (isLatest) cls = "active";
     else if (isCompleted) cls = "completed";
 
+    if (pubSemsMap.has(sem)) {
+      sgpaDisplay = `${fmt2(pubSemsMap.get(sem).sgpa)} SP`;
+    } else if (userSemsMap.has(sem)) {
+      sgpaDisplay = `${fmt2(userSemsMap.get(sem).sgpa)} SG`;
+    }
+
     return `
-      <div class="journey-node ${cls}" onclick="switchTab('results')">
+      <div class="journey-node ${cls}" onclick="handleJourneyNodeClick('${sem}')">
         <div class="journey-node-circle">${isLatest ? "●" : isCompleted ? "✓" : "○"}</div>
         <div class="journey-node-lbl">${sem}</div>
+        ${sgpaDisplay ? `<div style="font-size:9.5px;color:var(--text-muted);font-weight:600;margin-top:2px;">${sgpaDisplay}</div>` : ""}
       </div>`;
   }).join("");
 }
 
-function renderJourneyNodesFromSemesters(sems) {
-  const row = document.getElementById("journeyNodeRow");
-  if (!row) return;
-  const userSems = new Set(sems.map(s => s.semester));
-  const latestSem = sems.length > 0 ? sems[sems.length - 1].semester : null;
+function handleJourneyNodeClick(sem) {
+  // If exists in published results, open detail drawer
+  const pub = publishedResults.find(r => r.semester === sem);
+  if (pub) {
+    openResultDetail(pub._id);
+    return;
+  }
+  // Otherwise switch to SGPA manual management tab
+  switchTab("sgpa");
+}
+window.handleJourneyNodeClick = handleJourneyNodeClick;
 
-  row.innerHTML = SEMESTERS_ALL.map(sem => {
-    const isCompleted = userSems.has(sem);
-    const isLatest    = sem === latestSem;
-    let cls = "";
-    if (isLatest) cls = "active";
-    else if (isCompleted) cls = "completed";
+function populateDynamicNotifications(latestSem, latestPubResult, backlogCount) {
+  const list = document.getElementById("notificationsList");
+  if (!list) return;
+  list.innerHTML = "";
 
-    return `
-      <div class="journey-node ${cls}" onclick="switchTab('sgpa')">
-        <div class="journey-node-circle">${isLatest ? "●" : isCompleted ? "✓" : "○"}</div>
-        <div class="journey-node-lbl">${sem}</div>
-      </div>`;
-  }).join("");
+  const alerts = [];
+  if (latestPubResult) {
+    alerts.push({
+      title: `🎉 Result Published`,
+      desc: `Your official ${latestPubResult.semester} Semester result sheet is available.`,
+      cls: "background:var(--accent-green-bg);border-left:4px solid var(--brand-success);"
+    });
+  }
+  if (backlogCount > 0) {
+    alerts.push({
+      title: `⚠️ Pending Backlogs`,
+      desc: `You currently have ${backlogCount} pending backlog subjects.`,
+      cls: "background:var(--accent-rose-bg);border-left:4px solid var(--brand-danger);"
+    });
+  } else if (latestSem || latestPubResult) {
+    alerts.push({
+      title: `✅ Academic Clearance`,
+      desc: `All clear! Keep up the good work.`,
+      cls: "background:var(--accent-blue-bg);border-left:4px solid var(--brand-primary);"
+    });
+  } else {
+    alerts.push({
+      title: `👋 Welcome to GradeWise`,
+      desc: `Add your manual semesters or wait for your institution results.`,
+      cls: "background:var(--bg-muted);border-left:4px solid var(--text-muted);"
+    });
+  }
+
+  list.innerHTML = alerts.map(a => `
+    <div style="padding:12px;border-radius:var(--radius-sm);font-size:13px;${a.cls}">
+      <div style="font-weight:700;color:var(--text-main);">${esc(a.title)}</div>
+      <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">${esc(a.desc)}</div>
+    </div>`).join("");
 }
 
 function renderHomeChart(sems) {

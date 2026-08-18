@@ -547,6 +547,64 @@ body {
 .badge-fail { background: var(--accent-rose-bg); color: var(--accent-rose-txt); }
 .badge-info { background: var(--accent-blue-bg); color: var(--accent-blue-txt); }
 
+/* ── Modal Overlay & Slide-out Drawer ─────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 200;
+  display: flex; justify-content: flex-end;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+.modal-overlay.open {
+  opacity: 1; pointer-events: auto;
+}
+
+.modal-drawer {
+  width: 600px; max-width: 90vw; height: 100vh;
+  background: var(--bg-card);
+  border-left: 1px solid var(--border-color);
+  padding: 28px;
+  overflow-y: auto;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: -10px 0 30px rgba(0,0,0,0.15);
+}
+.modal-overlay.open .modal-drawer {
+  transform: translateX(0);
+}
+
+.quick-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.action-card-btn {
+  display: flex; flex-direction: column; justify-content: space-between; gap: 12px;
+  padding: 16px; border-radius: var(--radius-md);
+  background: var(--bg-muted); border: 1px solid var(--border-color);
+  color: var(--text-main); font-weight: 600; font-size: 13.5px;
+  cursor: pointer; transition: all 0.15s ease; text-align: left;
+}
+.action-card-btn:hover {
+  background: var(--bg-card-hover); border-color: var(--brand-primary);
+  transform: translateY(-2px); box-shadow: var(--shadow-sm);
+}
+
+/* ── Skeleton Pulse ───────────────────────────────────────────────────────── */
+.skeleton-box {
+  background: linear-gradient(90deg, var(--bg-muted) 25%, var(--bg-card-hover) 50%, var(--bg-muted) 75%);
+  background-size: 200% 100%;
+  animation: skeletonLoading 1.5s infinite;
+  border-radius: var(--radius-md);
+}
+@keyframes skeletonLoading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 /* ── Responsive Mobile ────────────────────────────────────────────────────── */
 @media (max-width: 1024px) {
   .kpi-row { grid-template-columns: repeat(2, 1fr); }
@@ -559,4 +617,19 @@ body {
   .kpi-row { grid-template-columns: 1fr; }
   .content-body { padding: 16px; }
   .featured-stats-grid { grid-template-columns: repeat(2, 1fr); }
+  
+  .modal-overlay { align-items: flex-end; justify-content: center; }
+  .modal-drawer {
+    width: 100vw; max-width: 100vw; height: 85vh;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    border-left: none; border-top: 1px solid var(--border-color);
+    transform: translateY(100%);
+  }
+  .modal-overlay.open .modal-drawer {
+    transform: translateY(0);
+  }
 }
+@media (max-width: 480px) {
+  .quick-actions-grid { grid-template-columns: 1fr; }
+}
+
