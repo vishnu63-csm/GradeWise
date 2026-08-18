@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -7,221 +7,268 @@
   <meta name="description" content="GradeWise Result Management & Academic Analytics Portal"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700;800&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="app.css"/>
+  <script src="theme.js"></script>
   <style>
-    /* Custom Admin Tweaks */
-    .admin-badge { background: rgba(225, 29, 72, 0.1); color: #E11D48; border: 1px solid rgba(225, 29, 72, 0.2); }
-    .wizard-steps { display: flex; gap: 12px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
-    .wizard-step { font-size: 13px; font-weight: 600; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
-    .wizard-step.active { color: var(--brand-primary); }
-    .wizard-step.completed { color: #16A34A; }
-    .status-pill { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px; text-transform: uppercase; }
-    .status-DRAFT { background: #FEF3C7; color: #D97706; }
-    .status-NEEDS_REVIEW { background: #FEE2E2; color: #DC2626; }
-    .status-PUBLISHED { background: #DCFCE7; color: #16A34A; }
-    .status-PROCESSING { background: #DBEAFE; color: #2563EB; }
+    .admin-badge-pill { background: rgba(225, 29, 72, 0.12); color: #E11D48; border: 1px solid rgba(225, 29, 72, 0.25); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; }
+    .status-pill { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 12px; text-transform: uppercase; }
+    .status-DRAFT { background: var(--accent-gold-bg); color: var(--accent-gold-txt); }
+    .status-NEEDS_REVIEW { background: var(--accent-rose-bg); color: var(--accent-rose-txt); }
+    .status-PUBLISHED { background: var(--accent-green-bg); color: var(--accent-green-txt); }
+    .status-PROCESSING { background: var(--accent-blue-bg); color: var(--accent-blue-txt); }
   </style>
 </head>
 <body>
 
-<!-- ── NAV ─────────────────────────────────────────────────────────────── -->
-<nav class="navbar">
-  <div class="nav-inner">
-    <div class="nav-brand">
-      <span class="nav-dot" style="background:#E11D48;"></span>
-      <span class="brand-wordmark">GradeWise</span>
-      <span class="nav-badge admin-badge">ADMIN PORTAL</span>
+<div class="app-container">
+
+<!-- ── LEFT SIDEBAR ──────────────────────────────────────────────────────── -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="brand-icon-box" style="background:#E11D48;">A</div>
+    <div>
+      <div class="brand-title">GradeWise</div>
+      <div class="brand-subtitle"><span class="admin-badge-pill">ADMIN PORTAL</span></div>
     </div>
-    <div class="nav-tabs-wrap" id="navTabs">
-      <button class="nav-tab active" data-tab="overview">Overview</button>
-      <button class="nav-tab" data-tab="uploads">Result Uploads</button>
-      <button class="nav-tab" data-tab="upload-wizard">Upload Wizard</button>
-      <button class="nav-tab" data-tab="rules">Roll Number Rules</button>
-      <button class="nav-tab" data-tab="analytics">Analytics</button>
-      <button class="nav-tab" data-tab="students">Students</button>
-    </div>
-    <div class="nav-right">
-      <div class="user-chip">
-        <div class="user-avatar" id="adminAvatar" style="background:#E11D48;color:white;">A</div>
-        <span class="user-name" id="adminName">Admin</span>
-      </div>
-      <button class="btn-icon" id="adminLogoutBtn" title="Logout">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        <span>Logout</span>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-group-label">ADMINISTRATION</div>
+    <button class="sidebar-btn active" data-tab="overview">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>Overview</span>
+    </button>
+    <button class="sidebar-btn" data-tab="uploads">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      <span>Results</span>
+    </button>
+    <button class="sidebar-btn" data-tab="upload-wizard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <span>Upload Results</span>
+    </button>
+    <button class="sidebar-btn" data-tab="students">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+      <span>Students</span>
+    </button>
+    <button class="sidebar-btn" data-tab="analytics">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <span>Analytics</span>
+    </button>
+    <button class="sidebar-btn" data-tab="rules">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      <span>Roll Rules</span>
+    </button>
+  </nav>
+
+  <div class="sidebar-footer">
+    <button class="sidebar-btn" id="adminLogoutBtn" style="color:var(--accent-rose-txt);">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      <span>Logout</span>
+    </button>
+  </div>
+</aside>
+
+<!-- ── MAIN WRAPPER ──────────────────────────────────────────────────────── -->
+<div class="main-wrapper">
+
+  <!-- ── TOPBAR ──────────────────────────────────────────────────────────── -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="icon-btn" id="sidebarToggle" title="Toggle Sidebar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
     </div>
-  </div>
-</nav>
 
-<main>
-<div class="page-content">
-
-<!-- ═══════════════════════════════════════════════════════════ OVERVIEW -->
-<section class="section-tab active" id="tab-overview">
-  <div class="page-header" style="margin-bottom:var(--space-xl);">
-    <h1>Admin Dashboard</h1>
-    <p>Overview of student results, uploads, and system statistics.</p>
-  </div>
-
-  <div class="kpi-grid" id="overviewKpiGrid" style="margin-bottom:var(--space-xl);">
-    <div class="kpi-card accent-blue"><div class="kpi-icon">👥</div><div class="kpi-value" id="kpiTotalStudents">—</div><div class="kpi-label">Registered Students</div></div>
-    <div class="kpi-card accent-green"><div class="kpi-icon">📄</div><div class="kpi-value" id="kpiPublishedUploads">—</div><div class="kpi-label">Published Uploads</div></div>
-    <div class="kpi-card accent-gold"><div class="kpi-icon">💯</div><div class="kpi-value" id="kpiPassPercentage">—</div><div class="kpi-label">Overall Pass Rate</div></div>
-    <div class="kpi-card accent-ind"><div class="kpi-icon">⚠️</div><div class="kpi-value" id="kpiTotalBacklogs">—</div><div class="kpi-label">Total Backlogs</div></div>
-  </div>
-
-  <div class="card">
-    <div class="section-heading" style="margin-bottom:var(--space-md);">Recent Result Uploads</div>
-    <div id="recentUploadsTable">Loading recent uploads...</div>
-  </div>
-</section>
-
-<!-- ═══════════════════════════════════════════════════════════ UPLOADS LIST -->
-<section class="section-tab" id="tab-uploads">
-  <div class="page-header-row">
-    <div>
-      <h1>Result Management</h1>
-      <p>Manage uploaded PDF result sets, review drafts, and publish to students.</p>
-    </div>
-    <button class="btn btn-primary" onclick="switchTab('upload-wizard')">+ New Result Upload</button>
-  </div>
-
-  <div class="card" style="margin-top:var(--space-md);">
-    <div id="uploadsListTable">Loading uploads...</div>
-  </div>
-</section>
-
-<!-- ═══════════════════════════════════════════════════════════ UPLOAD WIZARD -->
-<section class="section-tab" id="tab-upload-wizard">
-  <div class="page-header">
-    <h1>Upload Result PDF</h1>
-    <p>Upload a university result PDF file to extract, validate, and publish results to students.</p>
-  </div>
-
-  <div class="wizard-steps">
-    <div class="wizard-step active" id="wStep1">1. Metadata & PDF</div>
-    <div class="wizard-step" id="wStep2">2. Processing & Validation</div>
-    <div class="wizard-step" id="wStep3">3. Review & Publish</div>
-  </div>
-
-  <div class="card" id="wizardCard" style="max-width:700px;">
-    <form id="uploadForm">
-      <div class="field-row">
-        <div class="field-group">
-          <label class="field-label">Semester *</label>
-          <select class="field-input" id="wSemester" required>
-            <option value="1-1">1-1 (I-I)</option>
-            <option value="1-2">1-2 (I-II)</option>
-            <option value="2-1">2-1 (II-I)</option>
-            <option value="2-2">2-2 (II-II)</option>
-            <option value="3-1" selected>3-1 (III-I)</option>
-            <option value="3-2">3-2 (III-II)</option>
-            <option value="4-1">4-1 (IV-I)</option>
-            <option value="4-2">4-2 (IV-II)</option>
-          </select>
-        </div>
-        <div class="field-group">
-          <label class="field-label">Regulation</label>
-          <input class="field-input" id="wRegulation" value="R23" placeholder="R23"/>
-        </div>
-      </div>
-
-      <div class="field-row">
-        <div class="field-group">
-          <label class="field-label">Exam Session</label>
-          <input class="field-input" id="wExamSession" placeholder="e.g. April 2026"/>
-        </div>
-        <div class="field-group">
-          <label class="field-label">Academic Year</label>
-          <input class="field-input" id="wAcademicYear" placeholder="e.g. 2025-26"/>
-        </div>
-      </div>
-
-      <div class="field-group" style="margin-bottom:var(--space-md);">
-        <label class="field-label">Result PDF File *</label>
-        <input class="field-input" type="file" id="wPdfFile" accept=".pdf" required/>
-      </div>
-
-      <div id="uploadMsg" style="margin-bottom:var(--space-md);"></div>
-
-      <button type="submit" class="btn btn-primary btn-block" id="startUploadBtn">
-        Start Processing PDF →
+    <div style="display:flex;align-items:center;gap:14px;">
+      <button class="theme-toggle-btn" id="themeToggleBtn">
+        <span>🌙</span><span>Dark</span>
       </button>
-    </form>
-  </div>
-</section>
 
-<!-- ═══════════════════════════════════════════════════════════ ROLL RULES -->
-<section class="section-tab" id="tab-rules">
-  <div class="page-header-row">
-    <div>
-      <h1>Roll Number Rules</h1>
-      <p>Configure roll number prefix patterns to automatically detect departments and admission types.</p>
+      <div class="user-profile-menu">
+        <div class="user-avatar-circle" style="background:#E11D48;">AD</div>
+        <div>
+          <div class="user-info-text">Admin Portal</div>
+          <div class="user-info-sub">Superadmin</div>
+        </div>
+      </div>
     </div>
-    <button class="btn btn-primary" onclick="openAddRuleModal()">+ Add Rule</button>
-  </div>
+  </header>
 
-  <div class="card" style="margin-top:var(--space-md);">
-    <div id="rulesListTable">Loading rules...</div>
-  </div>
-</section>
+  <!-- ── CONTENT BODY ────────────────────────────────────────────────────── -->
+  <main class="content-body">
 
-<!-- ═══════════════════════════════════════════════════════════ ANALYTICS -->
-<section class="section-tab" id="tab-analytics">
-  <div class="page-header">
-    <h1>Academic Analytics</h1>
-    <p>Comprehensive performance and pass rate metrics across departments and subjects.</p>
-  </div>
+    <!-- ═══════════════════════════════════════════════════════════ OVERVIEW -->
+    <section class="section-tab active" id="tab-overview">
+      <div style="margin-bottom:24px;">
+        <h1 style="font-size:1.8rem;">Admin Dashboard</h1>
+        <p style="color:var(--text-sub);">Overview of students, uploads, pass percentage, and system metrics.</p>
+      </div>
 
-  <div id="analyticsContent">Loading analytics...</div>
-</section>
+      <div class="kpi-row" style="margin-bottom:28px;">
+        <div class="metric-card">
+          <div class="metric-header"><span class="metric-label">Total Students</span></div>
+          <div class="metric-value" id="kpiTotalStudents">—</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-header"><span class="metric-label">Published Uploads</span></div>
+          <div class="metric-value" id="kpiPublishedUploads">—</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-header"><span class="metric-label">Pass Percentage</span></div>
+          <div class="metric-value" id="kpiPassPercentage">—</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-header"><span class="metric-label">Active Backlogs</span></div>
+          <div class="metric-value" id="kpiTotalBacklogs">—</div>
+        </div>
+      </div>
 
-<!-- ═══════════════════════════════════════════════════════════ STUDENTS -->
-<section class="section-tab" id="tab-students">
-  <div class="page-header">
-    <h1>Registered Students</h1>
-    <p>List of all students registered on GradeWise.</p>
-  </div>
+      <div class="card-box">
+        <div class="card-title">Recent Result Uploads</div>
+        <div id="recentUploadsTable">Loading recent uploads...</div>
+      </div>
+    </section>
 
-  <div class="card" style="margin-top:var(--space-md);">
-    <div id="studentsListTable">Loading students...</div>
-  </div>
-</section>
+    <!-- ═══════════════════════════════════════════════════════════ UPLOADS LIST -->
+    <section class="section-tab" id="tab-uploads">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:12px;">
+        <div>
+          <h1>Result Management</h1>
+          <p style="color:var(--text-sub);">Review, publish, unpublish, and manage uploaded university result PDFs.</p>
+        </div>
+        <button class="btn btn-primary" onclick="switchTab('upload-wizard')">+ New Result Upload</button>
+      </div>
+
+      <div class="card-box">
+        <div id="uploadsListTable">Loading uploads...</div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════ UPLOAD WIZARD -->
+    <section class="section-tab" id="tab-upload-wizard">
+      <div style="margin-bottom:24px;">
+        <h1>Upload Result PDF</h1>
+        <p style="color:var(--text-sub);">5-Step Upload Wizard: Upload → Processing → Validation → Review → Publish.</p>
+      </div>
+
+      <div class="card-box" style="max-width:700px;">
+        <form id="uploadForm">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+            <div>
+              <label style="font-size:12px;font-weight:700;color:var(--text-sub);display:block;margin-bottom:6px;">Semester *</label>
+              <select id="wSemester" class="btn btn-secondary" style="width:100%;justify-content:space-between;" required>
+                <option value="1-1">1-1 (I-I)</option>
+                <option value="1-2">1-2 (I-II)</option>
+                <option value="2-1">2-1 (II-I)</option>
+                <option value="2-2">2-2 (II-II)</option>
+                <option value="3-1" selected>3-1 (III-I)</option>
+                <option value="3-2">3-2 (III-II)</option>
+                <option value="4-1">4-1 (IV-I)</option>
+                <option value="4-2">4-2 (IV-II)</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:12px;font-weight:700;color:var(--text-sub);display:block;margin-bottom:6px;">Regulation</label>
+              <input id="wRegulation" class="btn btn-secondary" style="width:100%;text-align:left;" value="R23" placeholder="R23"/>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+            <div>
+              <label style="font-size:12px;font-weight:700;color:var(--text-sub);display:block;margin-bottom:6px;">Exam Session</label>
+              <input id="wExamSession" class="btn btn-secondary" style="width:100%;text-align:left;" placeholder="e.g. April 2026"/>
+            </div>
+            <div>
+              <label style="font-size:12px;font-weight:700;color:var(--text-sub);display:block;margin-bottom:6px;">Academic Year</label>
+              <input id="wAcademicYear" class="btn btn-secondary" style="width:100%;text-align:left;" placeholder="e.g. 2025-26"/>
+            </div>
+          </div>
+
+          <div style="margin-bottom:20px;">
+            <label style="font-size:12px;font-weight:700;color:var(--text-sub);display:block;margin-bottom:6px;">Result PDF File *</label>
+            <input type="file" id="wPdfFile" accept=".pdf" required style="width:100%;padding:10px;border-radius:var(--radius-md);border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-main);"/>
+          </div>
+
+          <div id="uploadMsg" style="margin-bottom:20px;"></div>
+
+          <button type="submit" class="btn btn-primary" style="width:100%;" id="startUploadBtn">
+            Start Processing PDF →
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════ ROLL RULES -->
+    <section class="section-tab" id="tab-rules">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:12px;">
+        <div>
+          <h1>Roll Number Rules</h1>
+          <p style="color:var(--text-sub);">Manage prefix rules to dynamically detect departments and admission categories.</p>
+        </div>
+        <button class="btn btn-primary" onclick="openAddRuleModal()">+ Add Rule</button>
+      </div>
+
+      <div class="card-box">
+        <div id="rulesListTable">Loading rules...</div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════ ANALYTICS -->
+    <section class="section-tab" id="tab-analytics">
+      <div style="margin-bottom:24px;">
+        <h1>Academic Analytics</h1>
+        <p style="color:var(--text-sub);">Aggregated database analytics and subject failure performance.</p>
+      </div>
+
+      <div id="analyticsContent">Loading analytics...</div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════ STUDENTS -->
+    <section class="section-tab" id="tab-students">
+      <div style="margin-bottom:24px;">
+        <h1>Registered Students</h1>
+        <p style="color:var(--text-sub);">List of all registered students on GradeWise.</p>
+      </div>
+
+      <div class="card-box">
+        <div id="studentsListTable">Loading students...</div>
+      </div>
+    </section>
+
+  </main>
+</div>
 
 </div>
-</main>
 
-<!-- MODALS -->
+<!-- ── RULE MODAL ────────────────────────────────────────────────────────── -->
 <div class="modal-overlay" id="ruleModal">
-  <div class="modal">
-    <div class="modal-header">
-      <h2 class="modal-title" id="ruleModalTitle">Add Roll Number Rule</h2>
-      <button class="modal-close" onclick="closeModal('ruleModal')">&times;</button>
+  <div class="modal card-box" style="max-width:500px;width:90%;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border-color);padding-bottom:12px;">
+      <h2 class="card-title" id="ruleModalTitle" style="margin:0;">Add Roll Number Rule</h2>
+      <button class="icon-btn" onclick="closeModal('ruleModal')">✕</button>
     </div>
-    <div class="modal-body">
-      <form id="ruleForm">
-        <input type="hidden" id="ruleId"/>
-        <div class="field-group">
-          <label class="field-label">Roll Pattern / Prefix *</label>
-          <input class="field-input" id="rulePattern" placeholder="e.g. 23HP1A42" required/>
-        </div>
-        <div class="field-group">
-          <label class="field-label">Department *</label>
-          <input class="field-input" id="ruleDept" placeholder="e.g. CSE (AI & ML)" required/>
-        </div>
-        <div class="field-group">
-          <label class="field-label">Admission Type *</label>
-          <select class="field-input" id="ruleAdmType" required>
-            <option value="Regular Entry">Regular Entry</option>
-            <option value="Lateral Entry">Lateral Entry</option>
-          </select>
-        </div>
-        <div id="ruleMsg" style="margin-top:12px;"></div>
-      </form>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <input type="hidden" id="ruleId"/>
+      <div>
+        <label style="font-size:12px;font-weight:700;color:var(--text-sub);display:block;margin-bottom:4px;">Roll Pattern / Prefix *</label>
+        <input id="rulePattern" class="btn btn-secondary" style="width:100%;text-align:left;" placeholder="e.g. 23HP1A42" required/>
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:700;color:var(--text-sub);display:block;margin-bottom:4px;">Department *</label>
+        <input id="ruleDept" class="btn btn-secondary" style="width:100%;text-align:left;" placeholder="e.g. CSE (AI & ML)" required/>
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:700;color:var(--text-sub);display:block;margin-bottom:4px;">Admission Type *</label>
+        <select id="ruleAdmType" class="btn btn-secondary" style="width:100%;justify-content:space-between;" required>
+          <option value="Regular Entry">Regular Entry</option>
+          <option value="Lateral Entry">Lateral Entry</option>
+        </select>
+      </div>
+      <div id="ruleMsg"></div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('ruleModal')">Cancel</button>
+    <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:20px;">
+      <button class="btn btn-secondary" onclick="closeModal('ruleModal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveRollRule()">Save Rule</button>
     </div>
   </div>

@@ -437,15 +437,33 @@ async function loadStudents() {
   }
 }
 
+function switchTab(name) {
+  document.querySelectorAll(".sidebar-btn[data-tab]").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
+  document.querySelectorAll(".section-tab").forEach(s => s.classList.toggle("active", s.id === `tab-${name}`));
+  document.getElementById("sidebar")?.classList.remove("open");
+  window.scrollTo(0, 0);
+
+  if (name === "overview") loadOverview();
+  if (name === "uploads") loadUploadsList();
+  if (name === "rules") loadRules();
+  if (name === "analytics") loadAnalytics();
+  if (name === "students") loadStudents();
+}
+window.switchTab = switchTab;
+
 /* ═══════════════════════════════════════════════════════════ INIT ════════ */
 document.addEventListener("DOMContentLoaded", () => {
   if (!guardAdminAuth()) return;
 
-  document.querySelectorAll(".nav-tab[data-tab]").forEach(btn => {
+  document.querySelectorAll(".sidebar-btn[data-tab]").forEach(btn => {
     btn.addEventListener("click", () => switchTab(btn.dataset.tab));
   });
 
-  document.getElementById("adminLogoutBtn").addEventListener("click", () => {
+  document.getElementById("sidebarToggle")?.addEventListener("click", () => {
+    document.getElementById("sidebar")?.classList.toggle("open");
+  });
+
+  document.getElementById("adminLogoutBtn")?.addEventListener("click", () => {
     localStorage.removeItem("gradewise_admin_token");
     localStorage.removeItem("gradewise_admin");
     window.location.href = "admin-login.html";

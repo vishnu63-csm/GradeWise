@@ -1,18 +1,17 @@
-/* ─── GradeWise Student App ─────────────────────────────────────────────── */
+/* ─── GradeWise Student App Controller ──────────────────────────────────── */
 "use strict";
 
 const GRADE_POINTS = { S:10, A:9, B:8, C:7, D:6, E:5, F:0, Ab:0 };
 const GRADES = ["S","A","B","C","D","E","F","Ab"];
 const SEMESTERS_ALL = ["1-1","1-2","2-1","2-2","3-1","3-2","4-1","4-2"];
 const SEMESTERS_LATERAL = ["2-1","2-2","3-1","3-2","4-1","4-2"];
-const SEM_LABELS = {"1-1":"I-I","1-2":"I-II","2-1":"II-I","2-2":"II-II","3-1":"III-I","3-2":"III-II","4-1":"IV-I","4-2":"IV-II"};
+const SEM_LABELS = {"1-1":"1-1","1-2":"1-2","2-1":"2-1","2-2":"2-2","3-1":"3-1","3-2":"3-2","4-1":"4-1","4-2":"4-2"};
 
 /* ── State ──────────────────────────────────────────────────────────────── */
 let studentData      = null;
-let publishedResults = []; // fetched from /api/student/results
+let publishedResults = [];
 let homeChartInst    = null;
 let cgpaChartInst    = null;
-let editingSemName   = null;
 
 /* ── Auth ───────────────────────────────────────────────────────────────── */
 function getToken() { return localStorage.getItem("sgpa_token") || ""; }
@@ -41,24 +40,6 @@ const semOrd  = s => SEMESTERS_ALL.indexOf(s);
 const semSort = a => [...a].sort((x,y) => semOrd(x.semester) - semOrd(y.semester));
 const esc     = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
-function showEl(id)  { const e=document.getElementById(id); if(e) e.style.display=""; }
-function hideEl(id)  { const e=document.getElementById(id); if(e) e.style.display="none"; }
-function blockEl(id) { const e=document.getElementById(id); if(e) e.style.display="block"; }
-
-function statusBadge(sgpa) {
-  if (sgpa >= 9) return '<span class="badge badge-success">Outstanding</span>';
-  if (sgpa >= 8) return '<span class="badge badge-blue">Excellent</span>';
-  if (sgpa >= 7) return '<span class="badge badge-blue">Very Good</span>';
-  if (sgpa >= 6) return '<span class="badge badge-warning">Good</span>';
-  if (sgpa >= 5) return '<span class="badge badge-warning">Pass</span>';
-  return '<span class="badge badge-danger">Needs Improvement</span>';
-}
-
-function gradeChip(g) {
-  const cls = {S:"grade-S",A:"grade-A",B:"grade-B",C:"grade-C",D:"grade-D",E:"grade-E",F:"grade-F",Ab:"grade-F",UNKNOWN:"grade-F"}[g]||"";
-  return `<span class="grade-chip ${cls}">${esc(g)}</span>`;
-}
-
 function timeAgo(dateStr) {
   if (!dateStr) return "";
   const d = new Date(dateStr), now = new Date();
@@ -71,11 +52,20 @@ function timeAgo(dateStr) {
 
 /* ── Navigation ─────────────────────────────────────────────────────────── */
 function switchTab(name) {
-  document.querySelectorAll(".nav-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
-  document.querySelectorAll(".section-tab").forEach(s => s.classList.toggle("active", s.id === `tab-${name}`));
-  document.getElementById("mobileNav").classList.remove("open");
+  // Sidebar buttons
+  document.querySelectorAll(".sidebar-btn[data-tab]").forEach(b => {
+    b.classList.toggle("active", b.dataset.tab === name);
+  });
+  // Content sections
+  document.querySelectorAll(".section-tab").forEach(s => {
+    s.classList.toggle("active", s.id === `tab-${name}`);
+  });
+  // Close sidebar on mobile
+  document.getElementById("sidebar").classList.remove("open");
   window.scrollTo(0, 0);
+
   if (name === "results") loadResults();
+  if (name === "sgpa")    renderSgpa();
   if (name === "cgpa")    renderCgpa();
   if (name === "profile") renderProfile();
 }
@@ -85,94 +75,58 @@ function openModal(id)  { document.getElementById(id).classList.add("open"); }
 function closeModal(id) { document.getElementById(id).classList.remove("open"); }
 window.closeModal = closeModal;
 
-/* ═══════════════════════════════════════════════════════════ HOME TAB ════ */
+/* ═══════════════════════════════════════════════════════════ HOME DASHBOARD ═ */
 async function loadHome() {
-  hideEl("homeContent"); hideEl("homeError");
-  showEl("homeLoading");
   try {
-    [studentData] = await Promise.all([apiFetch("/api/student")]);
-    // Also try to fetch latest published result (non-blocking)
-    try {
-      const lr = await apiFetch("/api/student/results/latest");
-      if (lr.result) renderLatestResultBanner(lr.result);
-    } catch(_) {}
+    studentData = await apiFetch("/api/student");
+    
+    // User info in topbar
+    const name = studentData.name || "Student";
+    const roll = studentData.rollNumber || "";
+    document.getElementById("userName").textContent = name.split(" ")[0] || "Student";
+    document.getElementById("userRoll").textContent = roll || "JNTUK R23";
+    const initials = name.split(" ").map(w=>w[0]||"").slice(0,2).join("").toUpperCase() || "ST";
+    document.getElementById("userAvatar").textContent = initials;
 
-    const name = studentData.name || "";
+    // Greeting
     const hour = new Date().getHours();
     const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-    document.getElementById("welcomeMsg").textContent = `${greeting}, ${name.split(" ")[0]}! 👋`;
+    document.getElementById("welcomeMsg").textContent = `${greeting}, ${name} 👋`;
 
+    // Calculate metrics
     const sems = getApplicableSemesters(studentData);
-    const hasSems = sems.length > 0;
-    const cgpa   = studentData.cgpa;
-    const pct    = studentData.percentage;
-    const latest = hasSems ? sems[sems.length - 1] : null;
+    const cgpa = studentData.cgpa;
+    const pct  = studentData.percentage;
+    const latestSem = sems.length > 0 ? sems[sems.length - 1] : null;
+    const backlogs  = sems.reduce((acc, s) => acc + (s.subjects || []).filter(sub => sub.grade === "F" || sub.grade === "Ab").length, 0);
 
-    // KPI cards
-    document.getElementById("homeKpiGrid").innerHTML = [
-      { icon:"🎓", val: cgpa != null ? fmt2(cgpa) : "—",              lbl:"Overall CGPA",   cls:"accent-blue" },
-      { icon:"📈", val: latest ? fmt2(latest.sgpa) : "—",             lbl:"Latest SGPA",    cls:"accent-ind"  },
-      { icon:"💯", val: pct  != null ? fmtPct(pct)  : "—",            lbl:"Overall %",      cls:"accent-gold" },
-      { icon:"📚", val: sems.length,                                   lbl:"Semesters",      cls:"accent-green"},
-      { icon:"✅", val: studentData.totalCredits || sems.reduce((a,s)=>a+s.credits,0), lbl:"Total Credits", cls:"accent-blue"},
-    ].map(k => `
-      <div class="kpi-card ${k.cls}">
-        <div class="kpi-icon">${k.icon}</div>
-        <div class="kpi-value">${k.val}</div>
-        <div class="kpi-label">${k.lbl}</div>
-      </div>`).join("");
+    // Update KPI cards
+    document.getElementById("kpiCgpa").textContent     = cgpa != null ? fmt2(cgpa) : "—";
+    document.getElementById("kpiSgpa").textContent     = latestSem ? fmt2(latestSem.sgpa) : "—";
+    document.getElementById("kpiPct").textContent      = pct != null ? fmtPct(pct) : "—";
+    document.getElementById("kpiBacklogs").textContent = backlogs;
 
-    if (hasSems) {
-      document.getElementById("homeChartRow").style.display = "";
-      hideEl("homeEmpty");
-      renderHomeChart(sems);
-    } else {
-      document.getElementById("homeChartRow").style.display = "none";
-      showEl("homeEmpty");
+    // Load published results
+    try {
+      const res = await apiFetch("/api/student/results");
+      publishedResults = res.results || [];
+      if (publishedResults.length > 0) {
+        publishedResults.sort((a,b) => semOrd(a.semester) - semOrd(b.semester));
+        renderLatestFeaturedResult(publishedResults[publishedResults.length - 1]);
+        renderJourneyNodes(publishedResults);
+      } else {
+        renderJourneyNodesFromSemesters(sems);
+      }
+    } catch(_) {
+      renderJourneyNodesFromSemesters(sems);
     }
 
-    hideEl("homeLoading");
-    blockEl("homeContent");
-    renderSgpa();
+    if (sems.length > 0) {
+      renderHomeChart(sems);
+    }
   } catch(e) {
-    hideEl("homeLoading");
-    document.getElementById("homeError").innerHTML = `<div class="alert alert-error">⚠ Unable to load academic data. ${esc(e.message)}</div>`;
-    blockEl("homeError");
+    console.error("loadHome error:", e);
   }
-}
-
-function renderLatestResultBanner(result) {
-  const banner = document.getElementById("latestResultBanner");
-  if (!banner) return;
-  const statusClass = result.passed ? "badge-success" : "badge-danger";
-  const statusText  = result.passed ? "PASS" : "FAIL";
-  const semLabel = SEM_LABELS[result.semester] || result.semester;
-  const backlogs = result.backlogCount || 0;
-
-  banner.innerHTML = `
-    <div class="result-banner">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
-        <div>
-          <div class="result-banner-badge">🎉 LATEST PUBLISHED RESULT</div>
-          <div class="result-banner-title" style="font-size:1.6rem;">${esc(semLabel)} Semester</div>
-          <div class="result-banner-meta">${esc(result.regulation||"R23")} • ${esc(result.examType||"Regular")} • ${esc(result.examSession||"")}</div>
-        </div>
-        <div>
-          <span class="badge ${statusClass}" style="font-size:15px;padding:6px 18px;letter-spacing:0.5px;">${statusText}</span>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(110px, 1fr));gap:12px;background:rgba(255,255,255,0.1);padding:16px;border-radius:12px;margin-bottom:16px;backdrop-filter:blur(4px);">
-        <div><div style="font-size:11px;color:#C7D2FE;text-transform:uppercase;font-weight:600;">SGPA</div><div style="font-family:var(--font-head);font-size:1.4rem;font-weight:800;color:white;">${fmt2(result.sgpa)}</div></div>
-        <div><div style="font-size:11px;color:#C7D2FE;text-transform:uppercase;font-weight:600;">Percentage</div><div style="font-family:var(--font-head);font-size:1.4rem;font-weight:800;color:white;">${fmtPct(result.percentage)}</div></div>
-        <div><div style="font-size:11px;color:#C7D2FE;text-transform:uppercase;font-weight:600;">Credits</div><div style="font-family:var(--font-head);font-size:1.4rem;font-weight:800;color:white;">${result.totalCredits||0}</div></div>
-        <div><div style="font-size:11px;color:#C7D2FE;text-transform:uppercase;font-weight:600;">Backlogs</div><div style="font-family:var(--font-head);font-size:1.4rem;font-weight:800;color:${backlogs>0?"#FCA5A5":"white"};">${backlogs}</div></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
-        <span style="font-size:12px;color:#E0E7FF;">Published ${timeAgo(result.publishedAt)}</span>
-        <button class="btn btn-primary" style="background:white;color:#1E1B4B;font-weight:700;" onclick="switchTab('results')">View Full Result →</button>
-      </div>
-    </div>`;
-  banner.style.display = "";
 }
 
 function getApplicableSemesters(sd) {
@@ -183,163 +137,179 @@ function getApplicableSemesters(sd) {
   ));
 }
 
+function renderLatestFeaturedResult(result) {
+  if (!result) return;
+  document.getElementById("featuredSemTitle").textContent = `${result.semester} Semester`;
+  document.getElementById("featuredSemMeta").textContent  = `${result.regulation || "R23"} • ${result.examType || "Regular"} • ${result.examSession || "Official Exam"}`;
+  document.getElementById("featuredSgpa").textContent     = fmt2(result.sgpa);
+  document.getElementById("featuredPct").textContent      = fmtPct(result.percentage);
+  document.getElementById("featuredCredits").textContent  = result.totalCredits || 0;
+  document.getElementById("featuredBacklogs").textContent = result.backlogCount || 0;
+  document.getElementById("featuredTime").textContent     = result.publishedAt ? `Published ${timeAgo(result.publishedAt)}` : "Published Result";
+
+  const isPass = result.passed;
+  document.getElementById("featuredStatusBadge").innerHTML = `
+    <span class="badge ${isPass ? "badge-pass" : "badge-fail"}" style="font-size:14px;padding:6px 16px;">
+      ${isPass ? "PASS" : "FAIL"}
+    </span>`;
+}
+
+function renderJourneyNodes(pubResults) {
+  const row = document.getElementById("journeyNodeRow");
+  if (!row) return;
+  const pubSems = new Set(pubResults.map(r => r.semester));
+  const latestSem = pubResults.length > 0 ? pubResults[pubResults.length - 1].semester : null;
+
+  row.innerHTML = SEMESTERS_ALL.map(sem => {
+    const isCompleted = pubSems.has(sem);
+    const isLatest    = sem === latestSem;
+    let cls = "";
+    if (isLatest) cls = "active";
+    else if (isCompleted) cls = "completed";
+
+    return `
+      <div class="journey-node ${cls}" onclick="switchTab('results')">
+        <div class="journey-node-circle">${isLatest ? "●" : isCompleted ? "✓" : "○"}</div>
+        <div class="journey-node-lbl">${sem}</div>
+      </div>`;
+  }).join("");
+}
+
+function renderJourneyNodesFromSemesters(sems) {
+  const row = document.getElementById("journeyNodeRow");
+  if (!row) return;
+  const userSems = new Set(sems.map(s => s.semester));
+  const latestSem = sems.length > 0 ? sems[sems.length - 1].semester : null;
+
+  row.innerHTML = SEMESTERS_ALL.map(sem => {
+    const isCompleted = userSems.has(sem);
+    const isLatest    = sem === latestSem;
+    let cls = "";
+    if (isLatest) cls = "active";
+    else if (isCompleted) cls = "completed";
+
+    return `
+      <div class="journey-node ${cls}" onclick="switchTab('sgpa')">
+        <div class="journey-node-circle">${isLatest ? "●" : isCompleted ? "✓" : "○"}</div>
+        <div class="journey-node-lbl">${sem}</div>
+      </div>`;
+  }).join("");
+}
+
 function renderHomeChart(sems) {
-  const ctx = document.getElementById("homeChart").getContext("2d");
+  const ctx = document.getElementById("homeChart")?.getContext("2d");
+  if (!ctx) return;
   if (homeChartInst) homeChartInst.destroy();
+
+  const labels = sems.map(s => s.semester);
+  const sgpaData = sems.map(s => +Number(s.sgpa).toFixed(2));
+
   homeChartInst = new Chart(ctx, {
-    type: "bar",
+    type: "line",
     data: {
-      labels: sems.map(s => SEM_LABELS[s.semester] || s.semester),
-      datasets: [{ label:"SGPA", data: sems.map(s => +Number(s.sgpa).toFixed(4)),
-        backgroundColor:"rgba(37,99,235,0.12)", borderColor:"#2563EB", borderWidth:2, borderRadius:8 }]
+      labels,
+      datasets: [{
+        label: "SGPA",
+        data: sgpaData,
+        borderColor: "#3B82F6",
+        backgroundColor: "rgba(59, 130, 246, 0.1)",
+        tension: 0.35,
+        fill: true,
+        pointRadius: 5,
+        pointBackgroundColor: "#3B82F6",
+      }]
     },
     options: {
-      responsive:true, maintainAspectRatio:false,
-      plugins: { legend:{display:false}, tooltip:{ callbacks:{ label: c=>{
-        const s=Number(c.raw); return [`SGPA: ${s.toFixed(2)}`,`%: ${((s-0.75)*10).toFixed(2)}%`];
-      }}}},
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
       scales: {
-        y:{beginAtZero:false,min:0,max:10,grid:{color:"#F1F5F9"},ticks:{color:"#94A3B8"}},
-        x:{grid:{display:false},ticks:{color:"#94A3B8"}}
+        y: { min: 0, max: 10, grid: { color: "rgba(156, 163, 175, 0.15)" } },
+        x: { grid: { display: false } }
       }
     }
   });
 }
 
-/* ═══════════════════════════════════════════════════════ MY RESULTS TAB ══ */
+/* ═══════════════════════════════════════════════════════════ MY RESULTS TAB ═ */
 async function loadResults() {
-  showEl("resultsLoading");
-  hideEl("journeySection");
-  hideEl("resultsEmpty");
-  document.getElementById("resultsList").innerHTML = "";
-  document.getElementById("semDetailCard").style.display = "none";
-
+  const container = document.getElementById("resultsList");
+  container.innerHTML = "Loading published results...";
   try {
-    const data = await apiFetch("/api/student/results");
-    publishedResults = data.results || [];
-    hideEl("resultsLoading");
-
+    const res = await apiFetch("/api/student/results");
+    publishedResults = res.results || [];
     if (publishedResults.length === 0) {
-      showEl("resultsEmpty");
+      container.innerHTML = `
+        <div class="card-box" style="text-align:center;padding:48px 24px;">
+          <div style="font-size:3rem;margin-bottom:12px;">📑</div>
+          <h3 class="card-title" style="justify-content:center;">No Published Results Yet</h3>
+          <p style="color:var(--text-sub);max-width:460px;margin:0 auto 20px;">
+            Results published by your institution will automatically appear here matched to your roll number.
+          </p>
+        </div>`;
       return;
     }
 
-    // Sort by semester order then by publishedAt
-    publishedResults.sort((a, b) => semOrd(a.semester) - semOrd(b.semester));
+    container.innerHTML = publishedResults.map(r => `
+      <div class="card-box" style="margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+          <div>
+            <h2 style="font-family:var(--font-head);font-size:1.3rem;">${r.semester} Semester Result</h2>
+            <div style="font-size:13px;color:var(--text-sub);margin-top:2px;">${esc(r.regulation||"R23")} • ${esc(r.examType||"Regular")} • ${esc(r.examSession||"")}</div>
+          </div>
+          <div>
+            <span class="badge ${r.passed ? "badge-pass" : "badge-fail"}">${r.passed ? "PASS" : "FAIL"}</span>
+          </div>
+        </div>
 
-    renderJourney();
-    renderResultCards();
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(100px, 1fr));gap:12px;background:var(--bg-muted);padding:14px;border-radius:var(--radius-md);margin-bottom:16px;">
+          <div><div style="font-size:11px;color:var(--text-muted);">SGPA</div><div style="font-family:var(--font-head);font-weight:800;font-size:1.2rem;">${fmt2(r.sgpa)}</div></div>
+          <div><div style="font-size:11px;color:var(--text-muted);">PERCENTAGE</div><div style="font-family:var(--font-head);font-weight:800;font-size:1.2rem;">${fmtPct(r.percentage)}</div></div>
+          <div><div style="font-size:11px;color:var(--text-muted);">CREDITS</div><div style="font-family:var(--font-head);font-weight:800;font-size:1.2rem;">${r.totalCredits||0}</div></div>
+          <div><div style="font-size:11px;color:var(--text-muted);">BACKLOGS</div><div style="font-family:var(--font-head);font-weight:800;font-size:1.2rem;">${r.backlogCount||0}</div></div>
+        </div>
+
+        <button class="btn btn-secondary" onclick="openResultDetail('${r._id}')">View Subject Details →</button>
+      </div>
+    `).join("");
   } catch(e) {
-    hideEl("resultsLoading");
-    document.getElementById("resultsList").innerHTML =
-      `<div class="alert alert-error">⚠ Could not load results. ${esc(e.message)}</div>`;
+    container.innerHTML = `<div class="alert alert-error">⚠ ${esc(e.message)}</div>`;
   }
-}
-
-function renderJourney() {
-  const track = document.getElementById("journeyTrack");
-  const semsSeen = [...new Set(publishedResults.map(r => r.semester))].sort((a,b) => semOrd(a)-semOrd(b));
-  const latest = semsSeen[semsSeen.length-1];
-  track.innerHTML = semsSeen.map((sem, i) => {
-    const isLatest = sem === latest;
-    return `<div class="journey-stop ${isLatest?"latest":""}" onclick="scrollToSemCard('${sem}')">
-      <div class="journey-dot">${isLatest ? "●" : "✓"}</div>
-      <div class="journey-label">${SEM_LABELS[sem]||sem}${isLatest?'<span class="journey-latest-tag">Latest</span>':""}</div>
-    </div>`;
-  }).join('<div class="journey-line"></div>');
-  showEl("journeySection");
-}
-
-function scrollToSemCard(sem) {
-  const el = document.getElementById(`result-card-${sem}`);
-  if (el) el.scrollIntoView({ behavior:"smooth", block:"start" });
-}
-window.scrollToSemCard = scrollToSemCard;
-
-function renderResultCards() {
-  const list = document.getElementById("resultsList");
-  // Group by semester
-  const bySem = {};
-  for (const r of publishedResults) {
-    if (!bySem[r.semester]) bySem[r.semester] = [];
-    bySem[r.semester].push(r);
-  }
-
-  const sems = Object.keys(bySem).sort((a,b) => semOrd(a)-semOrd(b));
-  list.innerHTML = sems.map(sem => {
-    const results = bySem[sem];
-    const r = results[0]; // latest for that sem
-    const semLabel = SEM_LABELS[sem] || sem;
-    const statusCls = r.passed ? "badge-success" : "badge-danger";
-    const statusTxt = r.passed ? "PASS" : "FAIL";
-    const backlogs  = r.backlogCount || 0;
-
-    return `<div class="result-card" id="result-card-${sem}">
-      <div class="result-card-header">
-        <div>
-          <div class="result-card-title">${esc(semLabel)} Semester</div>
-          <div class="result-card-meta">${esc(r.regulation||"")} • ${esc(r.examType||"")} • ${esc(r.examSession||"")}</div>
-          ${r.department ? `<div class="result-card-dept">${esc(r.department)} — ${esc(r.admissionType||"")}</div>` : ""}
-        </div>
-        <div style="text-align:right;">
-          <span class="badge ${statusCls}" style="font-size:13px;padding:5px 14px;">${statusTxt}</span>
-          <div style="margin-top:6px;font-size:11px;color:var(--text-muted);">Published ${timeAgo(r.publishedAt)}</div>
-        </div>
-      </div>
-      <div class="result-card-stats">
-        <div class="result-stat"><div class="result-stat-val">${fmt2(r.sgpa)}</div><div class="result-stat-lbl">SGPA</div></div>
-        <div class="result-stat"><div class="result-stat-val">${fmtPct(r.percentage)}</div><div class="result-stat-lbl">Percentage</div></div>
-        <div class="result-stat"><div class="result-stat-val">${r.totalCredits||0}</div><div class="result-stat-lbl">Credits</div></div>
-        <div class="result-stat"><div class="result-stat-val ${backlogs>0?"text-danger":""}">${backlogs}</div><div class="result-stat-lbl">Backlogs</div></div>
-        <div class="result-stat"><div class="result-stat-val">${(r.subjects||[]).length}</div><div class="result-stat-lbl">Subjects</div></div>
-      </div>
-      <div class="result-card-footer">
-        <button class="btn btn-ghost btn-sm" onclick="openResultDetail('${r._id}')">View Subjects →</button>
-        ${statusBadge(r.sgpa||0)}
-      </div>
-    </div>`;
-  }).join("");
 }
 
 function openResultDetail(resultId) {
   const r = publishedResults.find(x => x._id === resultId);
   if (!r) return;
-  const semLabel = SEM_LABELS[r.semester] || r.semester;
-  const statusCls = r.passed ? "badge-success" : "badge-danger";
-
-  let subTable = "";
-  if ((r.subjects||[]).length > 0) {
-    subTable = `<div style="overflow-x:auto;margin-top:var(--space-md);">
+  document.getElementById("resultDetailTitle").textContent = `${r.semester} Semester — Subject Breakdown`;
+  
+  const subjects = r.subjects || [];
+  document.getElementById("resultDetailBody").innerHTML = `
+    <div style="margin-bottom:16px;display:flex;gap:16px;flex-wrap:wrap;">
+      <span class="badge ${r.passed ? "badge-pass" : "badge-fail"}" style="font-size:13px;">${r.passed ? "PASS" : "FAIL"}</span>
+      <span><strong>SGPA:</strong> ${fmt2(r.sgpa)}</span>
+      <span><strong>Percentage:</strong> ${fmtPct(r.percentage)}</span>
+      <span><strong>Credits:</strong> ${r.totalCredits}</span>
+    </div>
+    <div class="table-wrap">
       <table class="data-table">
-        <thead><tr><th>Subject</th><th>Code</th><th>Int.</th><th>Ext.</th><th>Grade</th><th>Credits</th><th>Status</th></tr></thead>
+        <thead>
+          <tr><th>Subject Code</th><th>Subject Name</th><th>Int</th><th>Ext</th><th>Grade</th><th>Credits</th><th>Status</th></tr>
+        </thead>
         <tbody>
-          ${r.subjects.map(s => `<tr>
-            <td>${esc(s.name)}</td>
-            <td style="font-family:monospace;font-size:12px;">${esc(s.code||"—")}</td>
-            <td>${s.internalMarks != null ? s.internalMarks : "—"}</td>
-            <td>${s.externalMarks != null ? s.externalMarks : "—"}</td>
-            <td>${gradeChip(s.grade)}</td>
-            <td>${s.credits}</td>
-            <td><span class="badge ${s.passed ? "badge-success" : "badge-danger"}">${s.passed ? "PASS" : "FAIL"}</span></td>
-          </tr>`).join("")}
+          ${subjects.map(s => `
+            <tr>
+              <td><code>${esc(s.code||"—")}</code></td>
+              <td>${esc(s.name)}</td>
+              <td>${s.internalMarks != null ? s.internalMarks : "—"}</td>
+              <td>${s.externalMarks != null ? s.externalMarks : "—"}</td>
+              <td><strong>${esc(s.grade)}</strong></td>
+              <td>${s.credits}</td>
+              <td><span class="badge ${s.passed ? "badge-pass" : "badge-fail"}">${s.passed ? "PASS" : "FAIL"}</span></td>
+            </tr>
+          `).join("")}
         </tbody>
       </table>
     </div>`;
-  } else {
-    subTable = `<div class="empty-state" style="padding:32px 0;"><div class="empty-icon">📋</div><p>No subject details available.</p></div>`;
-  }
-
-  document.getElementById("resultDetailTitle").textContent = `${semLabel} Semester — ${r.examSession||""}`;
-  document.getElementById("resultDetailBody").innerHTML = `
-    <div style="display:flex;gap:var(--space-md);flex-wrap:wrap;margin-bottom:var(--space-lg);">
-      <div class="result-stat card" style="padding:16px 24px;"><div class="result-stat-val">${fmt2(r.sgpa)}</div><div class="result-stat-lbl">SGPA</div></div>
-      <div class="result-stat card" style="padding:16px 24px;"><div class="result-stat-val">${fmtPct(r.percentage)}</div><div class="result-stat-lbl">Percentage</div></div>
-      <div class="result-stat card" style="padding:16px 24px;"><div class="result-stat-val">${r.totalCredits||0}</div><div class="result-stat-lbl">Credits</div></div>
-      <div class="result-stat card" style="padding:16px 24px;"><div class="result-stat-val">${r.backlogCount||0}</div><div class="result-stat-lbl">Backlogs</div></div>
-    </div>
-    <div style="margin-bottom:12px;"><span class="badge ${statusCls}" style="font-size:14px;padding:6px 16px;">${r.passed?"PASS":"FAIL"}</span> ${statusBadge(r.sgpa||0)}</div>
-    ${r.failedSubjects&&r.failedSubjects.length ? `<div class="alert alert-error" style="margin-bottom:12px;">❌ Failed/Absent: ${r.failedSubjects.map(esc).join(", ")}</div>` : ""}
-    ${subTable}`;
   openModal("resultDetailModal");
 }
 window.openResultDetail = openResultDetail;
@@ -349,329 +319,101 @@ function renderSgpa() {
   const sd = studentData;
   if (!sd) return;
   const sems = semSort(sd.semesters || []);
-  hideEl("sgpaLoading");
+  const grid = document.getElementById("semesterGrid");
+  if (!grid) return;
 
   if (sems.length === 0) {
-    showEl("sgpaEmpty");
-    document.getElementById("semesterGrid").innerHTML = "";
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;"><p style="color:var(--text-sub);">No manual semester grades added yet.</p></div>`;
     return;
   }
-  hideEl("sgpaEmpty");
 
-  document.getElementById("semesterGrid").innerHTML = sems.map(s => {
-    const pct = (s.sgpa - 0.75) * 10;
-    const isLE = sd.category === "Lateral Entry" && (s.semester === "1-1" || s.semester === "1-2");
-    return `<div class="semester-card ${isLE ? "sem-excluded" : ""}">
-      <div class="semester-card-top">
-        <div class="semester-name">${esc(SEM_LABELS[s.semester]||s.semester)} Semester ${isLE ? '<span class="badge badge-gray">Excluded (LE)</span>' : ""}</div>
-        ${statusBadge(s.sgpa)}
+  grid.innerHTML = sems.map(s => `
+    <div class="metric-card">
+      <div class="metric-header">
+        <span class="metric-label">${s.semester} Semester</span>
+        <span class="badge badge-info">${s.credits} Credits</span>
       </div>
-      <div class="sem-stats">
-        <div class="sem-stat"><span class="sem-stat-val accent-blue">${fmt2(s.sgpa)}</span><span class="sem-stat-lbl">SGPA</span></div>
-        <div class="sem-stat"><span class="sem-stat-val accent-green">${fmtPct(pct)}</span><span class="sem-stat-lbl">Percentage</span></div>
-        <div class="sem-stat"><span class="sem-stat-val">${s.credits}</span><span class="sem-stat-lbl">Credits</span></div>
-        <div class="sem-stat"><span class="sem-stat-val">${(s.subjects||[]).length}</span><span class="sem-stat-lbl">Subjects</span></div>
+      <div class="metric-value-row">
+        <span class="metric-value">${fmt2(s.sgpa)}</span>
+        <span style="font-size:13px;color:var(--text-sub);">${fmtPct((s.sgpa - 0.75)*10)}</span>
       </div>
-      <div class="semester-card-footer">
-        <button class="btn btn-ghost btn-sm" onclick="openSemDetail('${s.semester}')">View Details</button>
-        <button class="btn btn-outline btn-sm" onclick="openEditSem('${s.semester}')">Edit</button>
-      </div>
-    </div>`;
-  }).join("");
-}
-
-function openSemDetail(semName) {
-  const sd = studentData;
-  if (!sd) return;
-  const sem = (sd.semesters||[]).find(s => s.semester === semName);
-  if (!sem) return;
-  const pct = (sem.sgpa - 0.75) * 10;
-  document.getElementById("resultDetailTitle").textContent = `${SEM_LABELS[semName]||semName} Semester — Manual Entry`;
-  document.getElementById("resultDetailBody").innerHTML = `
-    <div style="display:flex;gap:var(--space-md);flex-wrap:wrap;margin-bottom:var(--space-lg);">
-      <div class="result-stat card" style="padding:16px 24px;"><div class="result-stat-val">${fmt2(sem.sgpa)}</div><div class="result-stat-lbl">SGPA</div></div>
-      <div class="result-stat card" style="padding:16px 24px;"><div class="result-stat-val">${fmtPct(pct)}</div><div class="result-stat-lbl">Percentage</div></div>
-      <div class="result-stat card" style="padding:16px 24px;"><div class="result-stat-val">${sem.credits}</div><div class="result-stat-lbl">Credits</div></div>
     </div>
-    <div style="overflow-x:auto;">
-      <table class="data-table">
-        <thead><tr><th>Subject</th><th>Credits</th><th>Grade</th><th>Grade Points</th></tr></thead>
-        <tbody>${(sem.subjects||[]).map(s=>`<tr>
-          <td>${esc(s.subject)}</td><td>${s.credits}</td><td>${gradeChip(s.grade)}</td><td>${GRADE_POINTS[s.grade]??0}</td>
-        </tr>`).join("")}</tbody>
-      </table>
-    </div>`;
-  openModal("resultDetailModal");
+  `).join("");
 }
-window.openSemDetail = openSemDetail;
 
-/* ═══════════════════════════════════════════════════════════ CGPA TAB ════ */
+/* ════════════════════════════════════════════════════════════ CGPA TAB ═══ */
 function renderCgpa() {
   const sd = studentData;
-  if (!sd) { document.getElementById("cgpaContent").innerHTML = ""; return; }
+  if (!sd) return;
   const sems = getApplicableSemesters(sd);
-  const cgpa = sd.cgpa;
-  const pct  = sd.percentage;
+  const container = document.getElementById("cgpaContent");
+  if (!container) return;
 
-  let cumulSgpa = 0, cumulCred = 0;
-  const progressData = sems.map(s => {
-    cumulCred += s.credits; cumulSgpa += s.credits * s.sgpa;
-    const cgpaHere = cumulCred > 0 ? cumulSgpa / cumulCred : 0;
-    return { semester: s.semester, cgpa: cgpaHere, pct: (cgpaHere - 0.75) * 10, sgpa: s.sgpa };
-  });
-
-  document.getElementById("cgpaContent").innerHTML = `
-    <div class="kpi-grid" style="margin-bottom:var(--space-xl);">
-      <div class="kpi-card accent-blue"><div class="kpi-icon">🎓</div><div class="kpi-value">${fmt2(cgpa)}</div><div class="kpi-label">Overall CGPA</div></div>
-      <div class="kpi-card accent-gold"><div class="kpi-icon">💯</div><div class="kpi-value">${fmtPct(pct)}</div><div class="kpi-label">Overall %</div></div>
-      <div class="kpi-card accent-green"><div class="kpi-icon">📚</div><div class="kpi-value">${sems.length}</div><div class="kpi-label">Counted Semesters</div></div>
-      <div class="kpi-card accent-ind"><div class="kpi-icon">✅</div><div class="kpi-value">${sems.reduce((a,s)=>a+s.credits,0)}</div><div class="kpi-label">Total Credits</div></div>
-    </div>
-    ${sems.length > 0 ? `<div class="chart-wrap" style="margin-bottom:var(--space-xl);"><div class="chart-title">📈 CGPA Progression</div><div class="chart-canvas-wrap"><canvas id="cgpaChart"></canvas></div></div>` : ""}
-    <div class="card">
-      <div class="section-heading" style="margin-bottom:var(--space-md);">Semester Breakdown</div>
-      ${sems.length === 0 ? '<p class="empty-sub">No semesters recorded.</p>' : `
-      <table class="data-table">
-        <thead><tr><th>Semester</th><th>SGPA</th><th>%</th><th>Credits</th><th>Cumulative CGPA</th></tr></thead>
-        <tbody>${progressData.map(p=>`<tr>
-          <td>${SEM_LABELS[p.semester]||p.semester}</td>
-          <td><strong>${fmt2(p.sgpa)}</strong></td>
-          <td>${fmtPct((p.sgpa-0.75)*10)}</td>
-          <td>${sems.find(s=>s.semester===p.semester)?.credits||0}</td>
-          <td>${fmt2(p.cgpa)}</td>
-        </tr>`).join("")}</tbody>
-      </table>`}
+  container.innerHTML = `
+    <div class="kpi-row" style="margin-bottom:24px;">
+      <div class="metric-card">
+        <div class="metric-header"><span class="metric-label">Overall CGPA</span></div>
+        <div class="metric-value" style="color:var(--brand-primary);">${fmt2(sd.cgpa)}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-header"><span class="metric-label">Percentage</span></div>
+        <div class="metric-value" style="color:#EAB308;">${fmtPct(sd.percentage)}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-header"><span class="metric-label">Total Credits</span></div>
+        <div class="metric-value">${sd.totalCredits || sems.reduce((a,s)=>a+s.credits,0)}</div>
+      </div>
     </div>`;
-
-  if (sems.length > 0) {
-    setTimeout(() => {
-      const ctx = document.getElementById("cgpaChart")?.getContext("2d");
-      if (!ctx) return;
-      if (cgpaChartInst) cgpaChartInst.destroy();
-      cgpaChartInst = new Chart(ctx, {
-        type:"line",
-        data:{ labels: progressData.map(p=>SEM_LABELS[p.semester]||p.semester),
-          datasets:[
-            { label:"CGPA", data:progressData.map(p=>+p.cgpa.toFixed(4)), borderColor:"#2563EB", backgroundColor:"rgba(37,99,235,0.08)", tension:0.3, fill:true, pointBackgroundColor:"#2563EB", pointRadius:5 },
-            { label:"SGPA", data:progressData.map(p=>+p.sgpa.toFixed(4)), borderColor:"#16A34A", backgroundColor:"transparent", tension:0.3, fill:false, borderDash:[4,4], pointRadius:4 },
-          ]},
-        options:{ responsive:true, maintainAspectRatio:false,
-          plugins:{ legend:{display:true,position:"top"}, tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${Number(c.raw).toFixed(2)}`}} },
-          scales:{ y:{min:0,max:10,grid:{color:"#F1F5F9"},ticks:{color:"#94A3B8"}}, x:{grid:{display:false},ticks:{color:"#94A3B8"}} }
-        }
-      });
-    }, 80);
-  }
 }
 
-/* ═══════════════════════════════════════════════════════════ PROFILE TAB ═ */
+/* ══════════════════════════════════════════════════════════ PROFILE TAB ═══ */
 function renderProfile() {
   const sd = studentData;
   if (!sd) return;
-  const sems = getApplicableSemesters(sd);
-  const backlogs = sems.reduce((a,s) => a + (s.subjects||[]).filter(sub=>sub.grade==="F"||sub.grade==="Ab").length, 0);
+  const container = document.getElementById("profileContent");
+  if (!container) return;
 
-  document.getElementById("profileContent").innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md);max-width:800px;">
-      <div class="card">
-        <div class="section-heading">Personal Info</div>
-        <div class="profile-row"><span class="profile-lbl">Name</span><span class="profile-val">${esc(sd.name||"—")}</span></div>
-        <div class="profile-row"><span class="profile-lbl">Roll Number</span><span class="profile-val"><code>${esc(sd.rollNumber||"—")}</code></span></div>
-        <div class="profile-row"><span class="profile-lbl">Department</span><span class="profile-val">${esc(sd.dept||"—")}</span></div>
-        <div class="profile-row"><span class="profile-lbl">Category</span><span class="profile-val"><span class="badge badge-blue">${esc(sd.category||"Regular Entry")}</span></span></div>
-        <div class="profile-row"><span class="profile-lbl">Phone</span><span class="profile-val">${esc(sd.phone||"—")}</span></div>
-      </div>
-      <div class="card">
-        <div class="section-heading">Academic Summary</div>
-        <div class="profile-row"><span class="profile-lbl">CGPA</span><span class="profile-val"><strong>${fmt2(sd.cgpa)}</strong></span></div>
-        <div class="profile-row"><span class="profile-lbl">Percentage</span><span class="profile-val">${fmtPct(sd.percentage)}</span></div>
-        <div class="profile-row"><span class="profile-lbl">Semesters</span><span class="profile-val">${sems.length}</span></div>
-        <div class="profile-row"><span class="profile-lbl">Total Credits</span><span class="profile-val">${sems.reduce((a,s)=>a+s.credits,0)}</span></div>
-        <div class="profile-row"><span class="profile-lbl">Active Backlogs</span><span class="profile-val ${backlogs>0?"text-danger":""}">${backlogs}</span></div>
+  container.innerHTML = `
+    <div class="card-box" style="max-width:600px;">
+      <div class="card-title">Student Information</div>
+      <div style="display:flex;flex-direction:column;gap:12px;font-size:14px;">
+        <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border-subtle);padding-bottom:8px;">
+          <span style="color:var(--text-sub);">Full Name</span><strong>${esc(sd.name)}</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border-subtle);padding-bottom:8px;">
+          <span style="color:var(--text-sub);">Roll Number</span><code>${esc(sd.rollNumber)}</code>
+        </div>
+        <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border-subtle);padding-bottom:8px;">
+          <span style="color:var(--text-sub);">Department</span><strong>${esc(sd.dept||"CSM")}</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border-subtle);padding-bottom:8px;">
+          <span style="color:var(--text-sub);">Admission Category</span><strong>${esc(sd.category||"Regular Entry")}</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;">
+          <span style="color:var(--text-sub);">Phone</span><strong>${esc(sd.phone)}</strong>
+        </div>
       </div>
     </div>`;
 }
-
-/* ════════════════════════════════════════════════════════ ADD SEM MODAL ══ */
-function updateSemesterOptions() {
-  const cat  = document.getElementById("modalCategory").value;
-  const sems = cat === "Lateral Entry" ? SEMESTERS_LATERAL : SEMESTERS_ALL;
-  const used = (studentData?.semesters||[]).map(s => s.semester);
-  const sel  = document.getElementById("modalSemester");
-  sel.innerHTML = sems.filter(s => !used.includes(s)).map(s => `<option value="${s}">${SEM_LABELS[s]||s}</option>`).join("");
-}
-window.updateSemesterOptions = updateSemesterOptions;
-
-document.addEventListener("change", e => {
-  if (e.target && e.target.id === "modalCategory") updateSemesterOptions();
-});
-
-function addSubjectRow(tbody = "subjectTableBody") {
-  const tr = document.createElement("tr");
-  tr.innerHTML = `
-    <td><input class="field-input" placeholder="Subject name" style="min-width:150px;"/></td>
-    <td><input class="field-input" type="number" placeholder="3" min="0.5" max="10" step="0.5" style="width:70px;"/></td>
-    <td><select class="field-input">${GRADES.map(g=>`<option>${g}</option>`).join("")}</select></td>
-    <td><button class="btn-icon btn-danger-icon" onclick="this.closest('tr').remove()" title="Remove">✕</button></td>`;
-  document.getElementById(tbody).appendChild(tr);
-}
-window.addSubjectRow = addSubjectRow;
-
-function addEditSubjectRow() { addSubjectRow("editSubjectTableBody"); }
-window.addEditSubjectRow = addEditSubjectRow;
-
-function collectSubjects(tbody) {
-  const rows = document.getElementById(tbody).querySelectorAll("tr");
-  const subjects = [];
-  for (const row of rows) {
-    const inputs  = row.querySelectorAll("input, select");
-    const subject = inputs[0]?.value.trim();
-    const credits = parseFloat(inputs[1]?.value);
-    const grade   = inputs[2]?.value;
-    if (!subject) throw new Error("Subject name cannot be empty.");
-    if (!credits || credits <= 0) throw new Error(`Invalid credits for "${subject}".`);
-    if (!grade) throw new Error(`Grade missing for "${subject}".`);
-    subjects.push({ subject, credits, grade });
-  }
-  if (subjects.length === 0) throw new Error("Add at least one subject.");
-  return subjects;
-}
-
-async function saveSemester() {
-  const sem      = document.getElementById("modalSemester").value;
-  const category = document.getElementById("modalCategory").value;
-  const msgEl    = document.getElementById("modalMsg");
-  msgEl.innerHTML = "";
-
-  let subjects;
-  try { subjects = collectSubjects("subjectTableBody"); }
-  catch(e) { msgEl.innerHTML = `<div class="alert alert-error">❌ ${esc(e.message)}</div>`; return; }
-
-  const text = document.getElementById("saveBtnText");
-  const spin = document.getElementById("saveBtnSpinner");
-  text.style.display = "none"; spin.style.display = "inline-block";
-
-  try {
-    if (studentData && studentData.category !== category) {
-      await apiFetch("/api/student/category", { method:"PUT", body: JSON.stringify({ category }) });
-    }
-    await apiFetch("/api/student/semester", { method:"POST", body: JSON.stringify({ semester:sem, subjects }) });
-    studentData = await apiFetch("/api/student");
-    closeModal("addSemModal");
-    renderSgpa();
-    if (homeChartInst) renderHomeChart(getApplicableSemesters(studentData));
-  } catch(e) {
-    msgEl.innerHTML = `<div class="alert alert-error">❌ ${esc(e.message)}</div>`;
-  } finally {
-    text.style.display = ""; spin.style.display = "none";
-  }
-}
-window.saveSemester = saveSemester;
-
-function openEditSem(semName) {
-  const sem = (studentData?.semesters||[]).find(s => s.semester === semName);
-  if (!sem) return;
-  editingSemName = semName;
-  document.getElementById("editModalTitle").textContent = `Edit ${SEM_LABELS[semName]||semName} Semester`;
-  document.getElementById("editSemName").value = semName;
-  document.getElementById("editModalMsg").innerHTML = "";
-  const tbody = document.getElementById("editSubjectTableBody");
-  tbody.innerHTML = "";
-  for (const s of (sem.subjects||[])) {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td><input class="field-input" value="${esc(s.subject)}" style="min-width:150px;"/></td>
-      <td><input class="field-input" type="number" value="${s.credits}" min="0.5" max="10" step="0.5" style="width:70px;"/></td>
-      <td><select class="field-input">${GRADES.map(g=>`<option ${g===s.grade?"selected":""}>${g}</option>`).join("")}</select></td>
-      <td><button class="btn-icon btn-danger-icon" onclick="this.closest('tr').remove()" title="Remove">✕</button></td>`;
-    tbody.appendChild(tr);
-  }
-  openModal("editSemModal");
-}
-window.openEditSem = openEditSem;
-
-async function saveEditSemester() {
-  const semName = document.getElementById("editSemName").value;
-  const msgEl   = document.getElementById("editModalMsg");
-  msgEl.innerHTML = "";
-
-  let subjects;
-  try { subjects = collectSubjects("editSubjectTableBody"); }
-  catch(e) { msgEl.innerHTML = `<div class="alert alert-error">❌ ${esc(e.message)}</div>`; return; }
-
-  const text = document.getElementById("editSaveBtnText");
-  const spin = document.getElementById("editSaveBtnSpinner");
-  text.style.display = "none"; spin.style.display = "inline-block";
-
-  try {
-    await apiFetch("/api/student/semester", { method:"POST", body: JSON.stringify({ semester:semName, subjects }) });
-    studentData = await apiFetch("/api/student");
-    closeModal("editSemModal");
-    renderSgpa();
-    if (homeChartInst) renderHomeChart(getApplicableSemesters(studentData));
-  } catch(e) {
-    msgEl.innerHTML = `<div class="alert alert-error">❌ ${esc(e.message)}</div>`;
-  } finally {
-    text.style.display = ""; spin.style.display = "none";
-  }
-}
-window.saveEditSemester = saveEditSemester;
-
-async function deleteSemester() {
-  const semName = document.getElementById("editSemName").value;
-  if (!confirm(`Delete ${SEM_LABELS[semName]||semName} semester? This cannot be undone.`)) return;
-  try {
-    await apiFetch(`/api/student/semester/${encodeURIComponent(semName)}`, { method:"DELETE" });
-    studentData = await apiFetch("/api/student");
-    closeModal("editSemModal");
-    renderSgpa();
-    if (homeChartInst) renderHomeChart(getApplicableSemesters(studentData));
-  } catch(e) {
-    document.getElementById("editModalMsg").innerHTML = `<div class="alert alert-error">❌ ${esc(e.message)}</div>`;
-  }
-}
-window.deleteSemester = deleteSemester;
 
 /* ════════════════════════════════════════════════════════════════ INIT ═══ */
 document.addEventListener("DOMContentLoaded", async () => {
   if (!guardAuth()) return;
 
-  // Populate user chip
-  try {
-    const u = JSON.parse(localStorage.getItem("sgpa_user") || "{}");
-    const name = u.name || "";
-    document.getElementById("userName").textContent = name.split(" ")[0] || "Student";
-    const initials = name.split(" ").map(w=>w[0]||"").slice(0,2).join("").toUpperCase() || "?";
-    document.getElementById("userAvatar").textContent = initials;
-  } catch(_) {}
-
-  // Tab switching
-  document.querySelectorAll(".nav-tab[data-tab]").forEach(btn => {
+  // Sidebar navigation bindings
+  document.querySelectorAll(".sidebar-btn[data-tab]").forEach(btn => {
     btn.addEventListener("click", () => switchTab(btn.dataset.tab));
   });
 
-  // Hamburger
-  document.getElementById("hamburger").addEventListener("click", () => {
-    document.getElementById("mobileNav").classList.toggle("open");
+  // Mobile sidebar toggle
+  document.getElementById("sidebarToggle")?.addEventListener("click", () => {
+    document.getElementById("sidebar").classList.toggle("open");
   });
 
-  // Logout
-  document.getElementById("logoutBtn").addEventListener("click", () => {
+  // Logout binding
+  document.getElementById("logoutBtn")?.addEventListener("click", () => {
     localStorage.clear();
     window.location.href = "login.html";
-  });
-
-  // Add semester button
-  document.getElementById("addSemBtn").addEventListener("click", () => {
-    document.getElementById("subjectTableBody").innerHTML = "";
-    document.getElementById("modalMsg").innerHTML = "";
-    if (studentData) document.getElementById("modalCategory").value = studentData.category || "Regular Entry";
-    updateSemesterOptions();
-    addSubjectRow();
-    openModal("addSemModal");
-  });
-  document.getElementById("addSemBtnEmpty").addEventListener("click", () => {
-    document.getElementById("addSemBtn").click();
   });
 
   await loadHome();

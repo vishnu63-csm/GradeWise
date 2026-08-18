@@ -1,338 +1,376 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>GradeWise — Student Dashboard</title>
+  <title>GradeWise — Student Academic Dashboard</title>
   <meta name="description" content="Track your JNTUK R23 SGPA, CGPA and published exam results with GradeWise."/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700;800&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="app.css"/>
+  <script src="theme.js"></script>
 </head>
 <body>
 
-<!-- ── NAV ─────────────────────────────────────────────────────────────── -->
-<nav class="navbar">
-  <div class="nav-inner">
-    <div class="nav-brand">
-      <span class="nav-dot"></span>
-      <span class="brand-wordmark">GradeWise</span>
-      <span class="nav-badge">JNTUK R23</span>
+<div class="app-container">
+
+<!-- ── LEFT SIDEBAR ──────────────────────────────────────────────────────── -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="brand-icon-box">G</div>
+    <div>
+      <div class="brand-title">GradeWise</div>
+      <div class="brand-subtitle">JNTUK R23</div>
     </div>
-    <div class="nav-tabs-wrap" id="navTabs">
-      <button class="nav-tab active" data-tab="home">Dashboard</button>
-      <button class="nav-tab" data-tab="results">My Results</button>
-      <button class="nav-tab" data-tab="sgpa">SGPA</button>
-      <button class="nav-tab" data-tab="cgpa">CGPA</button>
-      <button class="nav-tab" data-tab="profile">Profile</button>
-      <button class="nav-tab" data-tab="regulations">Regulations</button>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-group-label">MAIN MENU</div>
+    <button class="sidebar-btn active" data-tab="home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>Dashboard</span>
+    </button>
+    <button class="sidebar-btn" data-tab="results">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      <span>My Results</span>
+    </button>
+    <button class="sidebar-btn" data-tab="sgpa">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <span>SGPA</span>
+    </button>
+    <button class="sidebar-btn" data-tab="cgpa">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      <span>CGPA</span>
+    </button>
+    <button class="sidebar-btn" data-tab="profile">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>Profile</span>
+    </button>
+    <button class="sidebar-btn" data-tab="regulations">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+      <span>Regulations</span>
+    </button>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="sidebar-help-card">
+      <div class="sidebar-help-card-title">📖 Need Help?</div>
+      <div class="sidebar-help-card-sub">Check our documentation & formulas.</div>
     </div>
-    <div class="nav-right">
-      <div class="user-chip">
-        <div class="user-avatar" id="userAvatar">?</div>
-        <span class="user-name" id="userName">Student</span>
-      </div>
-      <button class="btn-icon" id="logoutBtn" title="Logout">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        <span>Logout</span>
+    <button class="sidebar-btn" id="logoutBtn" style="color:var(--accent-rose-txt);">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      <span>Logout</span>
+    </button>
+  </div>
+</aside>
+
+<!-- ── MAIN WRAPPER ──────────────────────────────────────────────────────── -->
+<div class="main-wrapper">
+
+  <!-- ── TOPBAR ──────────────────────────────────────────────────────────── -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="icon-btn" id="sidebarToggle" title="Toggle Sidebar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
-      <button class="nav-hamburger" id="hamburger" aria-label="Menu"><span></span><span></span><span></span></button>
-    </div>
-  </div>
-</nav>
-
-<!-- Mobile nav -->
-<div class="mobile-nav" id="mobileNav">
-  <button class="nav-tab" data-tab="home">Dashboard</button>
-  <button class="nav-tab" data-tab="results">My Results</button>
-  <button class="nav-tab" data-tab="sgpa">SGPA</button>
-  <button class="nav-tab" data-tab="cgpa">CGPA</button>
-  <button class="nav-tab" data-tab="profile">Profile</button>
-  <button class="nav-tab" data-tab="regulations">Regulations</button>
-</div>
-
-<main>
-<div class="page-content">
-
-<!-- ═══════════════════════════════════════════════════════════ DASHBOARD -->
-<section class="section-tab active" id="tab-home">
-  <div id="homeLoading" class="loading-state">
-    <div class="skeleton-list">
-      <div class="skeleton skeleton-card"></div>
-      <div class="kpi-grid"><div class="skeleton skeleton-kpi"></div><div class="skeleton skeleton-kpi"></div><div class="skeleton skeleton-kpi"></div><div class="skeleton skeleton-kpi"></div></div>
-      <div class="skeleton skeleton-chart"></div>
-    </div>
-  </div>
-  <div id="homeContent" style="display:none;">
-
-    <!-- Welcome row -->
-    <div class="page-header" style="margin-bottom:var(--space-md);">
-      <div>
-        <h1 id="welcomeMsg">Welcome back!</h1>
-        <p id="welcomeSub">Track your academic performance and published results.</p>
-      </div>
     </div>
 
-    <!-- Latest Published Result Banner (Prominent Top Section) -->
-    <div id="latestResultBanner" style="display:none; margin-bottom:var(--space-xl);"></div>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <button class="theme-toggle-btn" id="themeToggleBtn">
+        <span>🌙</span><span>Dark</span>
+      </button>
 
-    <!-- KPI grid (Academic Overview) -->
-    <div class="kpi-grid" id="homeKpiGrid" style="margin-bottom:var(--space-xl);"></div>
-
-    <!-- Chart + Quick Actions -->
-    <div class="home-chart-row" id="homeChartRow" style="display:none;">
-      <div class="chart-wrap">
-        <div class="chart-title">📈 Academic Performance Trend</div>
-        <div class="chart-canvas-wrap"><canvas id="homeChart"></canvas></div>
-      </div>
-      <div class="card">
-        <div class="section-heading">Quick Actions</div>
-        <div style="display:flex;flex-direction:column;gap:var(--space-sm);">
-          <button class="btn btn-primary btn-block" onclick="switchTab('results')">📋 View My Results</button>
-          <button class="btn btn-ghost btn-block" onclick="switchTab('sgpa')">+ Add Semester</button>
-          <button class="btn btn-ghost btn-block" onclick="switchTab('cgpa')">📊 View CGPA</button>
-          <button class="btn btn-ghost btn-block" onclick="switchTab('profile')">👤 My Profile</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Empty state -->
-    <div class="empty-state" id="homeEmpty" style="display:none;">
-      <div class="empty-icon">📚</div>
-      <div class="empty-title">No records yet</div>
-      <p class="empty-sub">Add your first semester or wait for your admin to publish results.</p>
-      <button class="btn btn-primary" onclick="switchTab('sgpa')">+ Add Semester</button>
-    </div>
-
-    <!-- Compact About GradeWise Footer Card -->
-    <div class="card" style="margin-top:var(--space-xl);padding:var(--space-md) var(--space-lg);background:var(--bg-surface);border:1px solid var(--border);">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-md);">
+      <div class="user-profile-menu">
+        <div class="user-avatar-circle" id="userAvatar">MV</div>
         <div>
-          <div style="font-weight:700;font-size:14px;color:var(--text-primary);">🎓 GradeWise — JNTUK R23 Academic Platform</div>
-          <div style="font-size:13px;color:var(--text-secondary);margin-top:2px;">Official grading system formulas, internal precision calculations, and automatic result publishing.</div>
-        </div>
-        <button class="btn btn-ghost btn-sm" onclick="switchTab('regulations')">View Regulations →</button>
-      </div>
-    </div>
-
-  </div>
-  <div id="homeError" style="display:none;"></div>
-</section>
-
-<!-- ═══════════════════════════════════════════════════════ MY RESULTS -->
-<section class="section-tab" id="tab-results">
-  <div class="page-header-row">
-    <div>
-      <h1>My Results</h1>
-      <p>Published exam results matched to your roll number.</p>
-    </div>
-  </div>
-
-  <div id="resultsLoading" class="loading-state" style="display:none;">
-    <div class="skeleton skeleton-card" style="height:120px;"></div>
-    <div class="skeleton skeleton-card" style="height:120px;margin-top:16px;"></div>
-  </div>
-
-  <div id="resultsContent">
-    <!-- Academic Journey timeline -->
-    <div id="journeySection" style="display:none;margin-bottom:var(--space-xl);">
-      <div class="section-heading">Academic Journey</div>
-      <div class="journey-track" id="journeyTrack"></div>
-    </div>
-
-    <!-- Selected semester detail -->
-    <div id="semDetailCard" style="display:none;"></div>
-
-    <!-- Result cards list -->
-    <div id="resultsList"></div>
-
-    <!-- Empty state -->
-    <div class="empty-state" id="resultsEmpty" style="display:none;">
-      <div class="empty-icon">🔔</div>
-      <div class="empty-title">No published results yet</div>
-      <p class="empty-sub">Results published by your institution admin will automatically appear here, matched to your roll number.</p>
-    </div>
-  </div>
-</section>
-
-<!-- ════════════════════════════════════════════════════════════════ SGPA -->
-<section class="section-tab" id="tab-sgpa">
-  <div class="page-header-row">
-    <div>
-      <h1>SGPA</h1>
-      <p>Manage your semester grades and performance.</p>
-    </div>
-    <button class="btn btn-primary" id="addSemBtn">+ Add Semester</button>
-  </div>
-
-  <div id="sgpaLoading" style="text-align:center;padding:40px 0;color:var(--text-muted);">
-    <div class="spinner" style="border-color:var(--border);border-top-color:var(--brand-primary);width:32px;height:32px;margin:0 auto 12px;"></div>
-    <p>Loading semesters…</p>
-  </div>
-  <div class="semester-grid" id="semesterGrid"></div>
-  <div class="empty-state" id="sgpaEmpty" style="display:none;margin-top:var(--space-lg);">
-    <div class="empty-icon">📝</div>
-    <div class="empty-title">No Semester Records</div>
-    <p class="empty-sub">Start by adding your first semester to calculate SGPA.</p>
-    <button class="btn btn-primary" id="addSemBtnEmpty">+ Add First Semester</button>
-  </div>
-</section>
-
-<!-- ════════════════════════════════════════════════════════════════ CGPA -->
-<section class="section-tab" id="tab-cgpa">
-  <div class="page-header"><h1>CGPA</h1><p>Your cumulative academic performance.</p></div>
-  <div id="cgpaContent"></div>
-</section>
-
-<!-- ══════════════════════════════════════════════════════════════ PROFILE -->
-<section class="section-tab" id="tab-profile">
-  <div class="page-header"><h1>Profile</h1><p>Your academic identity on GradeWise.</p></div>
-  <div id="profileContent"></div>
-</section>
-
-<!-- ════════════════════════════════════════════════════════ REGULATIONS -->
-<section class="section-tab" id="tab-regulations">
-  <div class="page-header"><h1>Regulations</h1><p>JNTUK R23 grade scale and percentage formula.</p></div>
-  <div class="card" style="max-width:720px;">
-    <div class="section-heading">Grade Points (R23)</div>
-    <table class="data-table" style="margin-top:var(--space-md);">
-      <thead><tr><th>Grade</th><th>Grade Points</th><th>Description</th></tr></thead>
-      <tbody>
-        <tr><td><span class="grade-chip grade-S">S</span></td><td>10</td><td>Outstanding</td></tr>
-        <tr><td><span class="grade-chip grade-A">A</span></td><td>9</td><td>Excellent</td></tr>
-        <tr><td><span class="grade-chip grade-B">B</span></td><td>8</td><td>Very Good</td></tr>
-        <tr><td><span class="grade-chip grade-C">C</span></td><td>7</td><td>Good</td></tr>
-        <tr><td><span class="grade-chip grade-D">D</span></td><td>6</td><td>Above Average</td></tr>
-        <tr><td><span class="grade-chip grade-E">E</span></td><td>5</td><td>Average</td></tr>
-        <tr><td><span class="grade-chip grade-F">F</span></td><td>0</td><td>Fail</td></tr>
-        <tr><td><span class="grade-chip grade-F">Ab</span></td><td>0</td><td>Absent</td></tr>
-      </tbody>
-    </table>
-    <div class="section-heading" style="margin-top:var(--space-xl);">Formulas</div>
-    <div class="formula-card">
-      <div class="formula-label">SGPA</div>
-      <div class="formula-text">SGPA = Σ(Credits × Grade Points) / Σ Credits</div>
-    </div>
-    <div class="formula-card">
-      <div class="formula-label">CGPA</div>
-      <div class="formula-text">CGPA = Σ(Semester Credits × SGPA) / Σ All Credits</div>
-    </div>
-    <div class="formula-card">
-      <div class="formula-label">Percentage</div>
-      <div class="formula-text">Percentage = (CGPA − 0.75) × 10</div>
-    </div>
-    <div class="formula-card">
-      <div class="formula-label">Lateral Entry</div>
-      <div class="formula-text">CGPA calculated excluding 1-1 &amp; 1-2 semesters</div>
-    </div>
-  </div>
-</section>
-
-</div>
-</main>
-
-<!-- ══════════════════════════════════════════════════════════ FOOTER -->
-<footer class="footer">
-  <div class="footer-inner">
-    <div class="footer-brand">
-      <span class="footer-logo">● GradeWise</span>
-      <p class="footer-desc">Academic Performance Platform for JNTUK R23 students.</p>
-      <div class="footer-dev"><span class="footer-dev-label">DEVELOPER</span><strong>M. Vishnu Vardhan Reddy</strong><span style="color:var(--text-muted);font-size:12px;">Creator / Developer of GradeWise</span></div>
-    </div>
-    <div class="footer-links-group">
-      <div><div class="footer-col-head">PLATFORM</div><a href="#" onclick="switchTab('home');return false;">Dashboard</a><a href="#" onclick="switchTab('results');return false;">My Results</a><a href="#" onclick="switchTab('sgpa');return false;">SGPA</a><a href="#" onclick="switchTab('cgpa');return false;">CGPA</a></div>
-      <div><div class="footer-col-head">LEARN</div><a href="#" onclick="switchTab('regulations');return false;">Regulations</a><a href="#" onclick="switchTab('profile');return false;">Profile</a></div>
-      <div><div class="footer-col-head">LINKS</div><a href="https://github.com/vishnu63-csm/GradeWise" target="_blank">GitHub</a></div>
-    </div>
-  </div>
-  <div class="footer-bottom">
-    <span>© 2026 GradeWise — Academic Performance Platform</span>
-    <a href="admin.html" class="admin-link">🔒 Admin Portal</a>
-  </div>
-</footer>
-
-<!-- ══════════════════════════════════════════════════════ ADD SEM MODAL -->
-<div class="modal-overlay" id="addSemModal">
-  <div class="modal">
-    <div class="modal-header">
-      <h2 class="modal-title">Add Semester Result</h2>
-      <button class="modal-close" onclick="closeModal('addSemModal')">&times;</button>
-    </div>
-    <div class="modal-body">
-      <div class="field-row">
-        <div class="field-group">
-          <label class="field-label">Student Category</label>
-          <select class="field-input" id="modalCategory">
-            <option value="Regular Entry">Regular Entry</option>
-            <option value="Lateral Entry">Lateral Entry</option>
-          </select>
-        </div>
-        <div class="field-group">
-          <label class="field-label">Semester</label>
-          <select class="field-input" id="modalSemester"></select>
+          <div class="user-info-text" id="userName">Student</div>
+          <div class="user-info-sub" id="userRoll">R23</div>
         </div>
       </div>
-      <div class="section-heading" style="margin:var(--space-md) 0 var(--space-sm);">Subjects</div>
-      <div style="overflow-x:auto;">
-        <table class="data-table" id="subjectTable">
-          <thead><tr><th>Subject Name</th><th>Credits</th><th>Grade</th><th></th></tr></thead>
-          <tbody id="subjectTableBody"></tbody>
+    </div>
+  </header>
+
+  <!-- ── CONTENT BODY ────────────────────────────────────────────────────── -->
+  <main class="content-body">
+
+    <!-- ═══════════════════════════════════════════════════════════ DASHBOARD -->
+    <section class="section-tab active" id="tab-home">
+      
+      <!-- Welcome Header -->
+      <div style="margin-bottom:24px;">
+        <h1 id="welcomeMsg" style="font-size:1.8rem;">Good afternoon, Student 👋</h1>
+        <p style="color:var(--text-sub);font-size:14.5px;">Track your academic performance and published results in one place.</p>
+      </div>
+
+      <!-- Top KPI Metric Cards Row -->
+      <div class="kpi-row" id="homeKpiGrid">
+        <!-- CGPA Metric Card -->
+        <div class="metric-card">
+          <div class="metric-header">
+            <span class="metric-label">Current CGPA</span>
+            <span class="badge badge-info">Cumulative</span>
+          </div>
+          <div class="metric-value-row">
+            <span class="metric-value" id="kpiCgpa">—</span>
+            <svg class="metric-sparkline" viewBox="0 0 80 30" fill="none">
+              <path d="M0 25 Q20 20, 40 10 T80 5" stroke="#3B82F6" stroke-width="2.5" fill="none"/>
+            </svg>
+          </div>
+          <div class="metric-footer" onclick="switchTab('cgpa')" style="cursor:pointer;">
+            <span>View Details</span> <span>→</span>
+          </div>
+        </div>
+
+        <!-- SGPA Metric Card -->
+        <div class="metric-card">
+          <div class="metric-header">
+            <span class="metric-label">Latest SGPA</span>
+            <span class="badge badge-pass">Semester</span>
+          </div>
+          <div class="metric-value-row">
+            <span class="metric-value" id="kpiSgpa">—</span>
+            <svg class="metric-sparkline" viewBox="0 0 80 30" fill="none">
+              <path d="M0 20 Q20 25, 40 12 T80 8" stroke="#22C55E" stroke-width="2.5" fill="none"/>
+            </svg>
+          </div>
+          <div class="metric-footer" onclick="switchTab('sgpa')" style="cursor:pointer;color:#22C55E;">
+            <span>View Details</span> <span>→</span>
+          </div>
+        </div>
+
+        <!-- Overall Percentage Card -->
+        <div class="metric-card">
+          <div class="metric-header">
+            <span class="metric-label">Overall Percentage</span>
+            <span class="badge badge-info">JNTUK Formula</span>
+          </div>
+          <div class="metric-value-row">
+            <span class="metric-value" id="kpiPct">—</span>
+            <svg class="metric-sparkline" viewBox="0 0 80 30" fill="none">
+              <path d="M0 22 Q20 18, 40 14 T80 4" stroke="#EAB308" stroke-width="2.5" fill="none"/>
+            </svg>
+          </div>
+          <div class="metric-footer" onclick="switchTab('cgpa')" style="cursor:pointer;color:#EAB308;">
+            <span>View Details</span> <span>→</span>
+          </div>
+        </div>
+
+        <!-- Active Backlogs Card -->
+        <div class="metric-card">
+          <div class="metric-header">
+            <span class="metric-label">Active Backlogs</span>
+            <span class="badge badge-fail">Pending</span>
+          </div>
+          <div class="metric-value-row">
+            <span class="metric-value" id="kpiBacklogs">0</span>
+            <svg class="metric-sparkline" viewBox="0 0 80 30" fill="none">
+              <path d="M0 10 Q20 22, 40 18 T80 25" stroke="#A855F7" stroke-width="2.5" fill="none"/>
+            </svg>
+          </div>
+          <div class="metric-footer" onclick="switchTab('results')" style="cursor:pointer;color:#A855F7;">
+            <span>View Details</span> <span>→</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Dashboard Grid (2 columns) -->
+      <div class="dashboard-grid">
+        
+        <!-- Left Column: Featured Latest Result + Academic Journey -->
+        <div style="display:flex;flex-direction:column;gap:24px;">
+          
+          <!-- Latest Published Result Card -->
+          <div id="latestResultBanner">
+            <div class="featured-result-card">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                <div>
+                  <div class="featured-badge">🎓 LATEST PUBLISHED RESULT</div>
+                  <div class="featured-title" id="featuredSemTitle">Loading Result...</div>
+                  <div class="featured-sub" id="featuredSemMeta">JNTUK R23 Examination</div>
+                </div>
+                <div id="featuredStatusBadge">
+                  <span class="badge badge-pass" style="font-size:14px;padding:6px 16px;">PASS</span>
+                </div>
+              </div>
+
+              <div class="featured-stats-grid">
+                <div><div class="featured-stat-lbl">SGPA</div><div class="featured-stat-val" id="featuredSgpa">—</div></div>
+                <div><div class="featured-stat-lbl">Percentage</div><div class="featured-stat-val" id="featuredPct">—</div></div>
+                <div><div class="featured-stat-lbl">Credits</div><div class="featured-stat-val" id="featuredCredits">—</div></div>
+                <div><div class="featured-stat-lbl">Backlogs</div><div class="featured-stat-val" id="featuredBacklogs">0</div></div>
+              </div>
+
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+                <span style="font-size:12px;color:#C7D2FE;" id="featuredTime">Official Exam Result</span>
+                <button class="btn btn-primary" style="background:white;color:#1E3A8A;font-weight:700;" onclick="switchTab('results')">View Full Result →</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Academic Journey Tracker -->
+          <div class="card-box">
+            <div class="card-title">
+              <span>Academic Journey</span>
+              <span style="font-size:12px;font-weight:500;color:var(--text-sub);">Semester Timeline</span>
+            </div>
+            
+            <div class="journey-node-row" id="journeyNodeRow">
+              <!-- Dynamically populated -->
+            </div>
+
+            <div style="display:flex;gap:20px;margin-top:16px;font-size:12px;color:var(--text-sub);">
+              <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:#22C55E;"></span> Completed</div>
+              <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:var(--brand-primary);"></span> Latest</div>
+              <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:var(--border-color);"></span> Upcoming</div>
+            </div>
+          </div>
+
+          <!-- SGPA Trend Chart -->
+          <div class="card-box" id="chartCardBox">
+            <div class="card-title">
+              <span>Performance Progression</span>
+              <span style="font-size:12px;color:var(--text-sub);">SGPA vs CGPA</span>
+            </div>
+            <div style="height:260px;position:relative;">
+              <canvas id="homeChart"></canvas>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right Column: Quick Actions + Notifications -->
+        <div style="display:flex;flex-direction:column;gap:24px;">
+
+          <!-- Quick Actions -->
+          <div class="card-box">
+            <div class="card-title">Quick Actions</div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <button class="btn btn-secondary" style="justify-content:flex-start;" onclick="switchTab('results')">
+                <span style="font-size:16px;">📋</span> View All Results
+              </button>
+              <button class="btn btn-secondary" style="justify-content:flex-start;" onclick="switchTab('sgpa')">
+                <span style="font-size:16px;">➕</span> Add Semester Result
+              </button>
+              <button class="btn btn-secondary" style="justify-content:flex-start;" onclick="switchTab('cgpa')">
+                <span style="font-size:16px;">📊</span> Calculate CGPA
+              </button>
+              <button class="btn btn-secondary" style="justify-content:flex-start;" onclick="switchTab('profile')">
+                <span style="font-size:16px;">👤</span> Update Profile
+              </button>
+            </div>
+          </div>
+
+          <!-- Recent Notifications -->
+          <div class="card-box">
+            <div class="card-title">
+              <span>Recent Updates</span>
+              <span style="font-size:12px;color:var(--brand-primary);cursor:pointer;" onclick="switchTab('results')">View All</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:12px;" id="notificationsList">
+              <div style="padding:10px;border-radius:var(--radius-sm);background:var(--bg-muted);font-size:13px;">
+                <div style="font-weight:600;color:var(--text-main);">🟢 Automatic Result Engine Active</div>
+                <div style="font-size:11.5px;color:var(--text-sub);margin-top:2px;">Published results auto-match to your roll number.</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Footer Bar -->
+      <footer style="margin-top:40px;padding:20px;border-top:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;font-size:12.5px;color:var(--text-sub);">
+        <div style="display:flex;gap:20px;flex-wrap:wrap;">
+          <span>⚡ Accurate Calculations</span>
+          <span>⏱ Real-time Updates</span>
+          <span>🔒 Secure &amp; Private</span>
+          <span>📋 JNTUK R23 Formula</span>
+        </div>
+        <div>© 2026 GradeWise. All rights reserved. | <a href="admin-login.html" style="color:var(--text-muted);">Admin Portal</a></div>
+      </footer>
+
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════ MY RESULTS -->
+    <section class="section-tab" id="tab-results">
+      <div style="margin-bottom:24px;">
+        <h1>My Published Results</h1>
+        <p style="color:var(--text-sub);">University result sheets published by institution admins, matched to your roll number.</p>
+      </div>
+      <div id="resultsList">Loading published results...</div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════ SGPA -->
+    <section class="section-tab" id="tab-sgpa">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:12px;">
+        <div>
+          <h1>SGPA Management</h1>
+          <p style="color:var(--text-sub);">Add and manage your semester subject grades.</p>
+        </div>
+        <button class="btn btn-primary" id="addSemBtn">+ Add Semester</button>
+      </div>
+      <div class="kpi-row" id="semesterGrid"></div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════ CGPA -->
+    <section class="section-tab" id="tab-cgpa">
+      <div style="margin-bottom:24px;">
+        <h1>CGPA Analytics</h1>
+        <p style="color:var(--text-sub);">Cumulative Performance Index &amp; Percentage calculation according to JNTUK R23 formula.</p>
+      </div>
+      <div id="cgpaContent"></div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════════ PROFILE -->
+    <section class="section-tab" id="tab-profile">
+      <div style="margin-bottom:24px;">
+        <h1>Student Profile</h1>
+        <p style="color:var(--text-sub);">Academic identity and record parameters.</p>
+      </div>
+      <div id="profileContent"></div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════ REGULATIONS -->
+    <section class="section-tab" id="tab-regulations">
+      <div style="margin-bottom:24px;">
+        <h1>JNTUK R23 Grading System</h1>
+        <p style="color:var(--text-sub);">Official grade points and percentage conversion formulas.</p>
+      </div>
+      <div class="card-box" style="max-width:800px;">
+        <table class="data-table" style="margin-bottom:24px;">
+          <thead><tr><th>Grade</th><th>Grade Point</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><strong>S</strong></td><td>10</td><td>Outstanding</td></tr>
+            <tr><td><strong>A</strong></td><td>9</td><td>Excellent</td></tr>
+            <tr><td><strong>B</strong></td><td>8</td><td>Very Good</td></tr>
+            <tr><td><strong>C</strong></td><td>7</td><td>Good</td></tr>
+            <tr><td><strong>D</strong></td><td>6</td><td>Above Average</td></tr>
+            <tr><td><strong>E</strong></td><td>5</td><td>Average</td></tr>
+            <tr><td><strong>F</strong></td><td>0</td><td>Fail</td></tr>
+            <tr><td><strong>Ab</strong></td><td>0</td><td>Absent</td></tr>
+          </tbody>
         </table>
+        <div style="padding:16px;background:var(--bg-muted);border-radius:var(--radius-md);font-size:13.5px;line-height:1.7;">
+          <strong>Percentage Formula:</strong> Percentage = (CGPA − 0.75) × 10<br/>
+          <strong>Lateral Entry Formula:</strong> CGPA computed excluding 1-1 and 1-2 semesters.
+        </div>
       </div>
-      <button class="btn btn-ghost" style="margin-top:var(--space-sm);" onclick="addSubjectRow()">+ Add Subject</button>
-      <div id="modalMsg" style="margin-top:var(--space-md);"></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('addSemModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveSemester()" id="saveBtn">
-        <span id="saveBtnText">Save Semester</span>
-        <svg id="saveBtnSpinner" class="spinner" style="display:none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-      </button>
-    </div>
-  </div>
+    </section>
+
+  </main>
 </div>
 
-<!-- ══════════════════════════════════════════════════ EDIT SEM MODAL -->
-<div class="modal-overlay" id="editSemModal">
-  <div class="modal">
-    <div class="modal-header">
-      <h2 class="modal-title" id="editModalTitle">Edit Semester</h2>
-      <button class="modal-close" onclick="closeModal('editSemModal')">&times;</button>
-    </div>
-    <div class="modal-body">
-      <input type="hidden" id="editSemName"/>
-      <div style="overflow-x:auto;">
-        <table class="data-table" id="editSubjectTable">
-          <thead><tr><th>Subject Name</th><th>Credits</th><th>Grade</th><th></th></tr></thead>
-          <tbody id="editSubjectTableBody"></tbody>
-        </table>
-      </div>
-      <button class="btn btn-ghost" style="margin-top:var(--space-sm);" onclick="addEditSubjectRow()">+ Add Subject</button>
-      <div id="editModalMsg" style="margin-top:var(--space-md);"></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-danger" onclick="deleteSemester()">Delete Semester</button>
-      <button class="btn btn-ghost" onclick="closeModal('editSemModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveEditSemester()" id="editSaveBtn">
-        <span id="editSaveBtnText">Save Changes</span>
-        <svg id="editSaveBtnSpinner" class="spinner" style="display:none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-      </button>
-    </div>
-  </div>
 </div>
 
-<!-- ═══════════════════════════════════════════ RESULT DETAIL MODAL -->
+<!-- ── RESULT DETAIL MODAL ───────────────────────────────────────────────── -->
 <div class="modal-overlay" id="resultDetailModal">
-  <div class="modal modal-lg">
-    <div class="modal-header">
-      <h2 class="modal-title" id="resultDetailTitle">Result Detail</h2>
-      <button class="modal-close" onclick="closeModal('resultDetailModal')">&times;</button>
+  <div class="modal card-box" style="max-width:800px;width:90%;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border-color);padding-bottom:12px;">
+      <h2 class="card-title" id="resultDetailTitle" style="margin:0;">Result Detail</h2>
+      <button class="icon-btn" onclick="closeModal('resultDetailModal')">✕</button>
     </div>
-    <div class="modal-body" id="resultDetailBody"></div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('resultDetailModal')">Close</button>
-    </div>
+    <div id="resultDetailBody"></div>
   </div>
 </div>
 
