@@ -1,590 +1,342 @@
-/* ─── GradeWise Admin Portal — JavaScript Controller ─────────────────────── */
+/* ─── GradeWise Admin Portal JavaScript ─────────────────────────────────── */
 "use strict";
 
-/* ── State ────────────────────────────────────────────────────────────────── */
-let adminToken    = "";
-let batches       = [];
-let allStudents   = [];
-let manualEntries = [];
-let currentBatch  = null;
-
-let dashBatchChart   = null;
-let dashPfChart      = null;
-let sgpaDistChart    = null;
-let batchPfChart     = null;
-
-/* ── Helpers ──────────────────────────────────────────────────────────────── */
-function fmt2(n) { return n != null ? Number(n).toFixed(2) : "—"; }
-function fmtPct(n) { return n != null ? `${Number(n).toFixed(2)}%` : "—"; }
-
-function showEl(id)  { const el = document.getElementById(id); if(el) el.style.display=""; }
-function hideEl(id)  { const el = document.getElementById(id); if(el) el.style.display="none"; }
-function blockEl(id) { const el = document.getElementById(id); if(el) el.style.display="block"; }
-function flexEl(id)  { const el = document.getElementById(id); if(el) el.style.display="flex"; }
+/* ── State & Auth ───────────────────────────────────────────────────────── */
+function getAdminToken() { return localStorage.getItem("gradewise_admin_token") || ""; }
+function guardAdminAuth() {
+  if (!getAdminToken()) { window.location.href = "login.html"; return false; }
+  return true;
+}
 
 async function adminFetch(url, opts = {}) {
   const res = await fetch(url, {
     ...opts,
     headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${adminToken}`,
+      "Authorization": `Bearer ${getAdminToken()}`,
       ...(opts.headers || {}),
     },
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Request failed");
+  if (!res.ok) {
+    if (res.status === 401) { window.location.href = "login.html"; }
+    throw new Error(data.error || "Request failed");
+  }
   return data;
 }
 
-/* ── Auth ─────────────────────────────────────────────────────────────────── */
-async function adminLogin() {
-  const username = document.getElementById("adminUser").value.trim();
-  const password = document.getElementById("adminPass").value;
-  if (!username || !password) {
-    document.getElementById("loginMsg").innerHTML = '<div class="alert alert-error">Enter username and password.</div>';
-    return;
-  }
-  document.getElementById("loginBtnText").style.display    = "none";
-  document.getElementById("loginBtnSpinner").style.display = "inline-block";
-  document.getElementById("loginMsg").innerHTML = "";
-  try {
-    const data = await fetch("/api/admin/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    }).then(r => r.json());
-    if (!data.token) throw new Error(data.error || "Login failed");
-    adminToken = data.token;
-    localStorage.setItem("admin_token", adminToken);
-    localStorage.setItem("admin_user", JSON.stringify({ username }));
-    showAdminApp(username);
-  } catch(e) {
-    document.getElementById("loginMsg").innerHTML = `<div class="alert alert-error">❌ ${e.message}</div>`;
-  } finally {
-    document.getElementById("loginBtnText").style.display    = "";
-    document.getElementById("loginBtnSpinner").style.display = "none";
-  }
-}
-window.adminLogin = adminLogin;
+const fmt2   = n => n != null ? Number(n).toFixed(2) : "—";
+const fmtPct = n => n != null ? `${Number(n).toFixed(2)}%` : "—";
+const esc    = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
-function adminLogout() {
-  localStorage.removeItem("admin_token");
-  localStorage.removeItem("admin_user");
-  adminToken = "";
-  document.getElementById("adminApp").style.display   = "none";
-  document.getElementById("loginScreen").style.display = "";
-}
-window.adminLogout = adminLogout;
-
-function showAdminApp(username) {
-  document.getElementById("loginScreen").style.display = "none";
-  document.getElementById("adminApp").style.display    = "";
-  const initials = (username||"A").slice(0,2).toUpperCase();
-  document.getElementById("adminAvatar").textContent = initials;
-  document.getElementById("adminName").textContent   = username || "Admin";
-  loadDashboard();
-  loadStudents();
-}
-
-/* ── Navigation ───────────────────────────────────────────────────────────── */
-function adminSwitchTab(name) {
-  document.querySelectorAll("#adminNavTabs .nav-tab").forEach(t => {
-    t.classList.toggle("active", t.dataset.tab === name);
-  });
-  document.querySelectorAll(".section-tab").forEach(s => {
-    s.classList.toggle("active", s.id === `tab-${name}`);
-  });
+function switchTab(name) {
+  document.querySelectorAll(".nav-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
+  document.querySelectorAll(".section-tab").forEach(s => s.classList.toggle("active", s.id === `tab-${name}`));
   window.scrollTo(0, 0);
-  if (name === "analytics")  { populateBatchSelects(); showEl("analyticsEmpty"); hideEl("analyticsContent"); }
-  if (name === "leaderboard"){ populateBatchSelects(); }
+
+  if (name === "overview") loadOverview();
+  if (name === "uploads") loadUploadsList();
+  if (name === "rules") loadRules();
+  if (name === "analytics") loadAnalytics();
+  if (name === "students") loadStudents();
 }
-window.adminSwitchTab = adminSwitchTab;
+window.switchTab = switchTab;
 
-document.addEventListener("DOMContentLoaded", () => {
-  // Tab wiring
-  document.querySelectorAll("#adminNavTabs .nav-tab").forEach(btn => {
-    btn.addEventListener("click", () => adminSwitchTab(btn.dataset.tab));
-  });
-  // Enter key on login
-  document.addEventListener("keydown", e => {
-    if (e.key === "Enter" && document.getElementById("loginScreen").style.display !== "none") adminLogin();
-  });
-  // Restore session
-  const tok = localStorage.getItem("admin_token");
-  const usr = localStorage.getItem("admin_user");
-  if (tok) {
-    adminToken = tok;
-    const u = usr ? JSON.parse(usr) : {};
-    showAdminApp(u.username || "Admin");
-  }
-  // Drag & drop
-  const zone = document.getElementById("uploadZone");
-  zone.addEventListener("dragover",  e => { e.preventDefault(); zone.classList.add("drag-over"); });
-  zone.addEventListener("dragleave", () => zone.classList.remove("drag-over"));
-  zone.addEventListener("drop", e => {
-    e.preventDefault(); zone.classList.remove("drag-over");
-    const file = e.dataTransfer.files[0];
-    if (file && file.type === "application/pdf") {
-      document.getElementById("pdfInput").files = e.dataTransfer.files;
-      handleFileSelect({ files: [file] });
-    }
-  });
-});
+function openModal(id) { document.getElementById(id).classList.add("open"); }
+function closeModal(id) { document.getElementById(id).classList.remove("open"); }
+window.closeModal = closeModal;
 
-/* ══════════════════════════════════════════════════════════════ DASHBOARD ══*/
-async function loadDashboard() {
-  hideEl("dashContent"); hideEl("dashEmpty");
-  showEl("dashLoading");
+/* ═══════════════════════════════════════════════════════════ OVERVIEW ════ */
+async function loadOverview() {
   try {
     const data = await adminFetch("/api/admin/dashboard");
-    batches = data.batches || [];
-    hideEl("dashLoading");
-    if (!batches.length) { showEl("dashEmpty"); return; }
-    renderDashboard(data);
-    blockEl("dashContent");
+    document.getElementById("kpiTotalStudents").textContent = data.totalStudents || 0;
+    document.getElementById("kpiPublishedUploads").textContent = data.publishedUploads || 0;
+    document.getElementById("kpiPassPercentage").textContent = data.passPercentage != null ? fmtPct(data.passPercentage) : "—";
+    document.getElementById("kpiTotalBacklogs").textContent = data.studentsWithBacklogs || 0;
+
+    const uploads = data.recentUploads || [];
+    const container = document.getElementById("recentUploadsTable");
+    if (uploads.length === 0) {
+      container.innerHTML = `<p class="empty-sub">No recent uploads found.</p>`;
+      return;
+    }
+
+    container.innerHTML = `
+      <table class="data-table">
+        <thead>
+          <tr><th>File</th><th>Semester</th><th>Regulation</th><th>Session</th><th>Students</th><th>Status</th><th>Date</th></tr>
+        </thead>
+        <tbody>
+          ${uploads.map(u => `
+            <tr>
+              <td><strong>${esc(u.fileName)}</strong></td>
+              <td>${esc(u.semester)}</td>
+              <td>${esc(u.regulation)}</td>
+              <td>${esc(u.examSession || "—")}</td>
+              <td>${u.totalStudents || 0}</td>
+              <td><span class="status-pill status-${u.status}">${esc(u.status)}</span></td>
+              <td>${new Date(u.createdAt).toLocaleDateString()}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>`;
   } catch(e) {
-    hideEl("dashLoading");
-    document.getElementById("dashContent").innerHTML = `<div class="alert alert-error">Failed to load dashboard: ${e.message}</div>`;
-    blockEl("dashContent");
+    document.getElementById("recentUploadsTable").innerHTML = `<div class="alert alert-error">⚠ ${esc(e.message)}</div>`;
   }
 }
 
-function renderDashboard(data) {
-  const totalStudents = data.totalStudents || 0;
-  const totalBatches  = batches.length;
-  const avgSgpa       = data.avgSgpa ? Number(data.avgSgpa).toFixed(2) : "—";
-  const passRate      = data.passRate ? Number(data.passRate).toFixed(1) + "%" : "—";
-
-  document.getElementById("dashKpiGrid").innerHTML = [
-    { icon:"📦", val:totalBatches,  lbl:"Total Batches",  cls:"accent-blue" },
-    { icon:"👥", val:totalStudents, lbl:"Students Tracked",cls:"accent-ind" },
-    { icon:"📈", val:avgSgpa,       lbl:"Avg SGPA",        cls:"accent-green"},
-    { icon:"✅", val:passRate,      lbl:"Overall Pass Rate",cls:"accent-gold"},
-  ].map(k=>`
-    <div class="kpi-card ${k.cls}">
-      <div class="kpi-icon">${k.icon}</div>
-      <div class="kpi-value">${k.val}</div>
-      <div class="kpi-label">${k.lbl}</div>
-    </div>`).join("");
-
-  // Batch chart
-  const ctx1 = document.getElementById("dashBatchChart").getContext("2d");
-  if (dashBatchChart) dashBatchChart.destroy();
-  dashBatchChart = new Chart(ctx1, {
-    type: "bar",
-    data: {
-      labels: batches.map(b => `${b.semester} (${b.dept})`),
-      datasets: [{
-        label: "Avg SGPA",
-        data: batches.map(b => b.avgSgpa ? Number(b.avgSgpa).toFixed(2) : 0),
-        backgroundColor: "rgba(37,99,235,.15)", borderColor: "#2563EB",
-        borderWidth: 2, borderRadius: 8,
-      }]
-    },
-    options: {
-      responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false} },
-      scales:{
-        y:{beginAtZero:false,min:0,max:10,grid:{color:"#F1F5F9"},ticks:{color:"#94A3B8"}},
-        x:{grid:{display:false},ticks:{color:"#94A3B8",maxRotation:30}}
-      }
+/* ═══════════════════════════════════════════════════════════ UPLOADS LIST ═ */
+async function loadUploadsList() {
+  const container = document.getElementById("uploadsListTable");
+  container.innerHTML = "Loading uploads...";
+  try {
+    const data = await adminFetch("/api/admin/uploads");
+    const uploads = data.uploads || [];
+    if (uploads.length === 0) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-icon">📄</div><p>No result files uploaded yet.</p></div>`;
+      return;
     }
-  });
 
-  // Pass/Fail donut
-  const ctx2 = document.getElementById("dashPassFailChart").getContext("2d");
-  if (dashPfChart) dashPfChart.destroy();
-  const passed = data.totalPassed || 0;
-  const failed = data.totalFailed || 0;
-  dashPfChart = new Chart(ctx2, {
-    type: "doughnut",
-    data: {
-      labels: ["Pass","Fail"],
-      datasets: [{
-        data: [passed, failed],
-        backgroundColor: ["#16A34A","#DC2626"],
-        borderWidth: 0, hoverOffset: 4
-      }]
-    },
-    options: {
-      responsive:true, maintainAspectRatio:false, cutout:"70%",
-      plugins:{ legend:{position:"bottom"} }
-    }
-  });
-
-  // Recent batches list
-  document.getElementById("recentBatchesList").innerHTML = batches.slice(0,6).map(b=>`
-    <div class="batch-item">
-      <div style="width:42px;height:42px;border-radius:var(--radius);background:var(--bg-hover);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">📦</div>
-      <div class="batch-item-info">
-        <div class="batch-title">${b.dept} — Sem ${b.semester} (${b.academicYear||""})</div>
-        <div class="batch-meta">${b.totalStudents||0} students · Avg SGPA ${b.avgSgpa?Number(b.avgSgpa).toFixed(2):"—"} · Pass ${b.passRate?Number(b.passRate).toFixed(1)+"%" : "—"}</div>
-      </div>
-      <div style="display:flex;gap:var(--space-sm);">
-        <button class="btn btn-ghost btn-sm" onclick='openBatchAnalytics("${b._id}")'>Analytics</button>
-      </div>
-    </div>`).join("");
-}
-
-function openBatchAnalytics(id) {
-  document.getElementById("analyticsBatchSelect").value = id;
-  adminSwitchTab("analytics");
-  loadBatchAnalytics();
-}
-window.openBatchAnalytics = openBatchAnalytics;
-
-/* ══════════════════════════════════════════════════════════════ UPLOAD ══════*/
-function handleFileSelect(input) {
-  const file = input.files ? input.files[0] : null;
-  if (!file) return;
-  document.getElementById("fileInfo").style.display = "block";
-  document.getElementById("fileInfo").innerHTML = `
-    <div class="alert alert-info">📄 <strong>${file.name}</strong> — ${(file.size/1024).toFixed(1)} KB selected</div>`;
-  document.getElementById("parseResult").style.display = "none";
-}
-window.handleFileSelect = handleFileSelect;
-
-async function uploadPdf() {
-  const file  = document.getElementById("pdfInput").files[0];
-  const year  = document.getElementById("upYear").value.trim();
-  const sem   = document.getElementById("upSemester").value;
-  const dept  = document.getElementById("upDept").value;
-  const reg   = document.getElementById("upRegulation").value;
-
-  if (!year || !sem || !dept) {
-    document.getElementById("uploadMsg").innerHTML = '<div class="alert alert-error">Please fill in Batch Details (Year, Semester, Department).</div>';
-    return;
+    container.innerHTML = `
+      <table class="data-table">
+        <thead>
+          <tr><th>File Name</th><th>Sem</th><th>Regulation</th><th>Session</th><th>Students</th><th>Valid / Review</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          ${uploads.map(u => `
+            <tr>
+              <td><strong>${esc(u.fileName)}</strong></td>
+              <td>${esc(u.semester)}</td>
+              <td>${esc(u.regulation)}</td>
+              <td>${esc(u.examSession || "—")}</td>
+              <td>${u.totalStudents || 0}</td>
+              <td><span class="text-success">${u.validStudents || 0}</span> / <span class="text-danger">${u.needsReviewCount || 0}</span></td>
+              <td><span class="status-pill status-${u.status}">${esc(u.status)}</span></td>
+              <td>
+                ${u.status === "PUBLISHED" ? 
+                  `<button class="btn btn-ghost btn-sm" onclick="unpublishUpload('${u._id}')">Unpublish</button>` :
+                  `<button class="btn btn-primary btn-sm" onclick="publishUpload('${u._id}')">Publish</button>`
+                }
+                <button class="btn btn-danger btn-sm" onclick="deleteUpload('${u._id}')">Delete</button>
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>`;
+  } catch(e) {
+    container.innerHTML = `<div class="alert alert-error">⚠ ${esc(e.message)}</div>`;
   }
-  if (!file) {
-    document.getElementById("uploadMsg").innerHTML = '<div class="alert alert-error">Please select a PDF file.</div>';
-    return;
+}
+
+async function publishUpload(id) {
+  if (!confirm("Are you sure you want to publish these results? They will become immediately visible to matching students.")) return;
+  try {
+    const res = await adminFetch(`/api/admin/upload/${id}/publish`, { method: "POST" });
+    alert(res.message || "Published successfully!");
+    loadUploadsList();
+  } catch(e) {
+    alert("Publishing failed: " + e.message);
   }
+}
+window.publishUpload = publishUpload;
 
-  const formData = new FormData();
-  formData.append("pdf", file);
-  formData.append("academicYear", year);
-  formData.append("semester", sem);
-  formData.append("dept", dept);
-  formData.append("regulation", reg);
+async function unpublishUpload(id) {
+  if (!confirm("Are you sure you want to unpublish? Students will no longer see these results.")) return;
+  try {
+    const res = await adminFetch(`/api/admin/upload/${id}/unpublish`, { method: "POST" });
+    alert(res.message || "Unpublished successfully!");
+    loadUploadsList();
+  } catch(e) {
+    alert("Unpublishing failed: " + e.message);
+  }
+}
+window.unpublishUpload = unpublishUpload;
 
-  document.getElementById("uploadBtnText").style.display    = "none";
-  document.getElementById("uploadBtnSpinner").style.display = "inline-block";
-  document.getElementById("uploadMsg").innerHTML = "";
+async function deleteUpload(id) {
+  if (!confirm("Delete this upload and all its student result records? This action cannot be undone.")) return;
+  try {
+    await adminFetch(`/api/admin/upload/${id}`, { method: "DELETE" });
+    loadUploadsList();
+  } catch(e) {
+    alert("Delete failed: " + e.message);
+  }
+}
+window.deleteUpload = deleteUpload;
+
+/* ═══════════════════════════════════════════════════════════ UPLOAD WIZARD ═ */
+document.getElementById("uploadForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById("startUploadBtn");
+  const msg = document.getElementById("uploadMsg");
+  msg.innerHTML = "";
+  btn.disabled = true;
+  btn.textContent = "Processing PDF Data...";
 
   try {
+    const formData = new FormData();
+    formData.append("semester", document.getElementById("wSemester").value);
+    formData.append("regulation", document.getElementById("wRegulation").value);
+    formData.append("examSession", document.getElementById("wExamSession").value);
+    formData.append("academicYear", document.getElementById("wAcademicYear").value);
+
+    const pdfFile = document.getElementById("wPdfFile").files[0];
+    if (pdfFile) formData.append("pdf", pdfFile);
+
     const res = await fetch("/api/admin/upload-pdf", {
       method: "POST",
-      headers: { "Authorization": `Bearer ${adminToken}` },
+      headers: { "Authorization": `Bearer ${getAdminToken()}` },
       body: formData,
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Upload failed");
 
-    document.getElementById("parseResult").style.display = "block";
-    document.getElementById("parseResult").innerHTML = `
-      <div class="parse-result-banner">
-        <div style="font-weight:700;margin-bottom:8px;color:var(--brand-primary);">✅ PDF Parsed Successfully</div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-sm);font-size:14px;">
-          <div><div class="form-label">Students Found</div><div style="font-weight:700;">${data.studentCount||0}</div></div>
-          <div><div class="form-label">Avg SGPA</div><div style="font-weight:700;">${data.avgSgpa?Number(data.avgSgpa).toFixed(2):"—"}</div></div>
-          <div><div class="form-label">Pass Rate</div><div style="font-weight:700;">${data.passRate?Number(data.passRate).toFixed(1)+"%":"—"}</div></div>
-        </div>
-        <button class="btn btn-primary btn-sm" style="margin-top:var(--space-md);" onclick='confirmBatchSave("${data.batchId||""}")'>Confirm &amp; Save Batch</button>
-      </div>`;
-    loadDashboard();
-  } catch(e) {
-    document.getElementById("uploadMsg").innerHTML = `<div class="alert alert-error">❌ ${e.message}</div>`;
+    msg.innerHTML = `<div class="alert alert-success">
+      ✅ Processing complete! Found <strong>${data.studentCount}</strong> student records.<br/>
+      Valid: ${data.validCount} | Needs Review: ${data.needsReviewCount}<br/>
+      <button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="publishUpload('${data.uploadId}')">Publish Now</button>
+    </div>`;
+  } catch(err) {
+    msg.innerHTML = `<div class="alert alert-error">❌ ${esc(err.message)}</div>`;
   } finally {
-    document.getElementById("uploadBtnText").style.display    = "";
-    document.getElementById("uploadBtnSpinner").style.display = "none";
+    btn.disabled = false;
+    btn.textContent = "Start Processing PDF →";
   }
-}
-window.uploadPdf = uploadPdf;
+});
 
-async function confirmBatchSave(batchId) {
-  if (!batchId) return;
+/* ═══════════════════════════════════════════════════════════ ROLL RULES ═══ */
+async function loadRules() {
+  const container = document.getElementById("rulesListTable");
   try {
-    await adminFetch(`/api/admin/batch/${batchId}/confirm`, { method: "POST" });
-    document.getElementById("uploadMsg").innerHTML = '<div class="alert alert-success">✅ Batch saved to database.</div>';
-    loadDashboard();
-    populateBatchSelects();
-  } catch(e) {
-    document.getElementById("uploadMsg").innerHTML = `<div class="alert alert-error">❌ ${e.message}</div>`;
-  }
-}
-window.confirmBatchSave = confirmBatchSave;
-
-/* Manual entry */
-function addManualEntry() {
-  const roll     = document.getElementById("manualRoll").value.trim().toUpperCase();
-  const name     = document.getElementById("manualName").value.trim();
-  const sgpa     = parseFloat(document.getElementById("manualSgpa").value);
-  const credits  = parseFloat(document.getElementById("manualCredits").value);
-  const backlogs = document.getElementById("manualBacklogs").value.split(",").map(s=>s.trim()).filter(Boolean);
-
-  if (!roll || !name || isNaN(sgpa) || isNaN(credits)) {
-    alert("Please fill Roll Number, Name, SGPA, and Credits."); return;
-  }
-  manualEntries.push({ roll, name, sgpa, credits, backlogs });
-  renderManualEntries();
-  // Clear fields
-  ["manualRoll","manualName","manualSgpa","manualCredits","manualBacklogs"].forEach(id => {
-    document.getElementById(id).value = "";
-  });
-}
-window.addManualEntry = addManualEntry;
-
-function renderManualEntries() {
-  document.getElementById("manualEntriesList").innerHTML = manualEntries.map((e,i) => `
-    <div class="batch-item" style="padding:10px 14px;">
-      <div style="flex:1;">
-        <span style="font-weight:700;">${e.name}</span>
-        <span style="color:var(--text-muted);margin-left:8px;font-size:13px;font-family:monospace;">${e.roll}</span>
-        <span class="badge badge-blue" style="margin-left:8px;">SGPA ${e.sgpa.toFixed(2)}</span>
-        ${e.backlogs.length ? `<span class="badge badge-danger" style="margin-left:4px;">${e.backlogs.length} Backlog${e.backlogs.length>1?"s":""}</span>` : '<span class="badge badge-success" style="margin-left:4px;">Clear</span>'}
-      </div>
-      <button class="btn btn-danger btn-sm" onclick="removeManualEntry(${i})">Remove</button>
-    </div>`).join("");
-  document.getElementById("manualSubmitRow").style.display = manualEntries.length ? "" : "none";
-}
-window.removeManualEntry = (i) => { manualEntries.splice(i,1); renderManualEntries(); };
-
-async function submitManualBatch() {
-  const year = document.getElementById("upYear").value.trim();
-  const sem  = document.getElementById("upSemester").value;
-  const dept = document.getElementById("upDept").value;
-  const reg  = document.getElementById("upRegulation").value;
-  if (!year||!sem||!dept) { alert("Fill in Batch Details first."); return; }
-  if (!manualEntries.length) { alert("Add at least one entry."); return; }
-
-  document.getElementById("manualBtnText").style.display    = "none";
-  document.getElementById("manualBtnSpinner").style.display = "inline-block";
-  try {
-    await adminFetch("/api/admin/batch/manual", {
-      method: "POST",
-      body: JSON.stringify({ academicYear:year, semester:sem, dept, regulation:reg, students:manualEntries }),
-    });
-    document.getElementById("uploadMsg").innerHTML = '<div class="alert alert-success">✅ Batch submitted successfully.</div>';
-    manualEntries = [];
-    renderManualEntries();
-    loadDashboard();
-    populateBatchSelects();
-  } catch(e) {
-    document.getElementById("uploadMsg").innerHTML = `<div class="alert alert-error">❌ ${e.message}</div>`;
-  } finally {
-    document.getElementById("manualBtnText").style.display    = "";
-    document.getElementById("manualBtnSpinner").style.display = "none";
-  }
-}
-window.submitManualBatch = submitManualBatch;
-
-/* ══════════════════════════════════════════════════════════════ ANALYTICS ══*/
-function populateBatchSelects() {
-  const opts = batches.map(b =>
-    `<option value="${b._id}">${b.dept} — Sem ${b.semester} (${b.academicYear||""})</option>`
-  ).join("");
-  ["analyticsBatchSelect","lbBatchSelect"].forEach(id => {
-    const sel = document.getElementById(id);
-    if (sel) { const cur = sel.value; sel.innerHTML = '<option value="">-- Select Batch --</option>' + opts; sel.value = cur; }
-  });
-}
-
-async function loadBatchAnalytics() {
-  const id = document.getElementById("analyticsBatchSelect").value;
-  if (!id) { showEl("analyticsEmpty"); hideEl("analyticsContent"); return; }
-  hideEl("analyticsEmpty"); hideEl("analyticsContent");
-  blockEl("analyticsLoading");
-
-  try {
-    const data = await adminFetch(`/api/admin/batch/${id}/analytics`);
-    currentBatch = data;
-    hideEl("analyticsLoading");
-    renderBatchAnalytics(data);
-    blockEl("analyticsContent");
-  } catch(e) {
-    hideEl("analyticsLoading");
-    document.getElementById("analyticsContent").innerHTML = `<div class="alert alert-error">Failed: ${e.message}</div>`;
-    blockEl("analyticsContent");
-  }
-}
-window.loadBatchAnalytics = loadBatchAnalytics;
-
-function renderBatchAnalytics(data) {
-  const students = data.students || [];
-  const total    = students.length;
-  const passed   = students.filter(s => !s.backlogs || s.backlogs.length === 0).length;
-  const failed   = total - passed;
-  const avgSgpa  = total ? students.reduce((a,s)=>a+s.sgpa,0)/total : 0;
-  const maxSgpa  = total ? Math.max(...students.map(s=>s.sgpa)) : 0;
-  const minSgpa  = total ? Math.min(...students.map(s=>s.sgpa)) : 0;
-
-  document.getElementById("analyticsKpiGrid").innerHTML = [
-    { val:total,             lbl:"Total Students",  cls:"accent-blue"  },
-    { val:passed,            lbl:"Passed",           cls:"accent-green" },
-    { val:failed,            lbl:"With Backlogs",    cls:"accent-red"   },
-    { val:fmt2(avgSgpa),     lbl:"Avg SGPA",         cls:"accent-ind"   },
-    { val:fmt2(maxSgpa),     lbl:"Highest SGPA",     cls:"accent-gold"  },
-    { val:fmt2(minSgpa),     lbl:"Lowest SGPA",      cls:"accent-blue"  },
-  ].map(k=>`
-    <div class="kpi-card ${k.cls}">
-      <div class="kpi-value" style="font-size:1.3rem;">${k.val}</div>
-      <div class="kpi-label">${k.lbl}</div>
-    </div>`).join("");
-
-  // SGPA distribution histogram
-  const buckets = ["5–6","6–7","7–8","8–9","9–10"];
-  const counts  = [0,0,0,0,0];
-  students.forEach(s => {
-    const v = s.sgpa;
-    if      (v < 6)  counts[0]++;
-    else if (v < 7)  counts[1]++;
-    else if (v < 8)  counts[2]++;
-    else if (v < 9)  counts[3]++;
-    else             counts[4]++;
-  });
-  const ctx1 = document.getElementById("sgpaDistChart").getContext("2d");
-  if (sgpaDistChart) sgpaDistChart.destroy();
-  sgpaDistChart = new Chart(ctx1, {
-    type:"bar",
-    data:{
-      labels:buckets,
-      datasets:[{ label:"Students", data:counts,
-        backgroundColor:["#DBEAFE","#BBF7D0","#A7F3D0","#C7D2FE","#E9D5FF"],
-        borderRadius:8, borderWidth:0 }]
-    },
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      plugins:{legend:{display:false}},
-      scales:{y:{beginAtZero:true,grid:{color:"#F1F5F9"},ticks:{color:"#94A3B8"}},
-              x:{grid:{display:false},ticks:{color:"#94A3B8"}}}
+    const data = await adminFetch("/api/admin/roll-rules");
+    const rules = data.rules || [];
+    if (rules.length === 0) {
+      container.innerHTML = `<div class="empty-state"><p>No roll number rules configured.</p></div>`;
+      return;
     }
-  });
-
-  // Pass/Fail donut
-  const ctx2 = document.getElementById("batchPassFailChart").getContext("2d");
-  if (batchPfChart) batchPfChart.destroy();
-  batchPfChart = new Chart(ctx2, {
-    type:"doughnut",
-    data:{ labels:["Pass","Fail"],
-      datasets:[{ data:[passed,failed], backgroundColor:["#16A34A","#DC2626"], borderWidth:0, hoverOffset:4 }]
-    },
-    options:{ responsive:true, maintainAspectRatio:false, cutout:"70%", plugins:{legend:{position:"bottom"}} }
-  });
-
-  // Subject analytics
-  const subjectMap = {};
-  students.forEach(s => {
-    (s.backlogs||[]).forEach(sub => {
-      subjectMap[sub] = (subjectMap[sub]||0) + 1;
-    });
-  });
-  const subjectGrid = document.getElementById("subjectAnalyticsGrid");
-  if (Object.keys(subjectMap).length) {
-    subjectGrid.innerHTML = Object.entries(subjectMap)
-      .sort((a,b)=>b[1]-a[1]).slice(0,12).map(([sub,cnt]) => {
-        const failPct = total ? (cnt/total*100).toFixed(1) : 0;
-        return `
-        <div class="subject-analytics-card">
-          <div style="font-weight:700;font-size:14px;">${sub}</div>
-          <div style="font-size:13px;color:var(--text-muted);">${cnt} of ${total} students failed</div>
-          <div class="progress-bar">
-            <div class="progress-fill" style="width:${failPct}%;background:var(--brand-danger);"></div>
-          </div>
-          <div style="font-size:12px;font-weight:700;color:var(--brand-danger);">${failPct}% Fail Rate</div>
-        </div>`;
-      }).join("");
-  } else {
-    subjectGrid.innerHTML = '<p style="color:var(--text-muted);font-size:14px;">No backlog data available.</p>';
-  }
-}
-
-function exportCsv() {
-  if (!currentBatch) { alert("Load a batch first."); return; }
-  const rows = [["Name","Roll Number","SGPA","Credits","Percentage","Backlogs"]];
-  (currentBatch.students||[]).forEach(s => {
-    rows.push([
-      s.name || "—", s.roll, fmt2(s.sgpa), s.credits || "—",
-      fmtPct((s.sgpa - 0.75) * 10),
-      (s.backlogs||[]).join("; ") || "None"
-    ]);
-  });
-  const csv  = rows.map(r => r.map(c => `"${c}"`).join(",")).join("\n");
-  const blob = new Blob([csv], { type:"text/csv" });
-  const url  = URL.createObjectURL(blob);
-  const a    = Object.assign(document.createElement("a"), { href:url, download:"batch_results.csv" });
-  a.click(); URL.revokeObjectURL(url);
-}
-window.exportCsv = exportCsv;
-
-/* ══════════════════════════════════════════════════════════════ LEADERBOARD ══*/
-async function loadLeaderboard() {
-  const id = document.getElementById("lbBatchSelect").value;
-  if (!id) { hideEl("lbContent"); showEl("lbEmpty"); return; }
-  try {
-    const data = await adminFetch(`/api/admin/batch/${id}/analytics`);
-    const students = [...(data.students||[])].sort((a,b)=>b.sgpa-a.sgpa);
-    showEl("lbContent"); hideEl("lbEmpty");
-
-    document.getElementById("lbTableBody").innerHTML = students.map((s,i) => {
-      const rank = i + 1;
-      let rankHtml;
-      if      (rank === 1) rankHtml = '<span class="rank-badge rank-1">🥇</span>';
-      else if (rank === 2) rankHtml = '<span class="rank-badge rank-2">🥈</span>';
-      else if (rank === 3) rankHtml = '<span class="rank-badge rank-3">🥉</span>';
-      else                 rankHtml = `<span class="rank-badge rank-n">${rank}</span>`;
-      const hasBacklog = s.backlogs && s.backlogs.length > 0;
-      return `<tr>
-        <td>${rankHtml}</td>
-        <td style="font-weight:600;">${s.name||"—"}</td>
-        <td class="td-mono">${s.roll||"—"}</td>
-        <td class="td-num" style="color:var(--brand-primary);">${fmt2(s.sgpa)}</td>
-        <td>${fmtPct((s.sgpa-0.75)*10)}</td>
-        <td>${hasBacklog
-          ? `<span class="badge badge-danger">${s.backlogs.length} Backlog</span>`
-          : '<span class="badge badge-success">Clear</span>'}</td>
-      </tr>`;
-    }).join("");
+    container.innerHTML = `
+      <table class="data-table">
+        <thead>
+          <tr><th>Prefix Pattern</th><th>Department</th><th>Admission Type</th><th>Regulation</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          ${rules.map(r => `
+            <tr>
+              <td><code>${esc(r.pattern)}</code></td>
+              <td>${esc(r.department)}</td>
+              <td><span class="badge badge-blue">${esc(r.admissionType)}</span></td>
+              <td>${esc(r.regulation || "R23")}</td>
+              <td><button class="btn btn-danger btn-sm" onclick="deleteRule('${r._id}')">Delete</button></td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>`;
   } catch(e) {
-    alert("Failed to load leaderboard: " + e.message);
+    container.innerHTML = `<div class="alert alert-error">⚠ ${esc(e.message)}</div>`;
   }
 }
-window.loadLeaderboard = loadLeaderboard;
 
-/* ══════════════════════════════════════════════════════════════ STUDENTS ════*/
+function openAddRuleModal() {
+  document.getElementById("ruleId").value = "";
+  document.getElementById("rulePattern").value = "";
+  document.getElementById("ruleDept").value = "";
+  document.getElementById("ruleMsg").innerHTML = "";
+  openModal("ruleModal");
+}
+window.openAddRuleModal = openAddRuleModal;
+
+async function saveRollRule() {
+  const pattern = document.getElementById("rulePattern").value.trim();
+  const department = document.getElementById("ruleDept").value.trim();
+  const admissionType = document.getElementById("ruleAdmType").value;
+  const msg = document.getElementById("ruleMsg");
+
+  try {
+    await adminFetch("/api/admin/roll-rules", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pattern, department, admissionType }),
+    });
+    closeModal("ruleModal");
+    loadRules();
+  } catch(e) {
+    msg.innerHTML = `<div class="alert alert-error">❌ ${esc(e.message)}</div>`;
+  }
+}
+window.saveRollRule = saveRollRule;
+
+async function deleteRule(id) {
+  if (!confirm("Delete this rule?")) return;
+  try {
+    await adminFetch(`/api/admin/roll-rules/${id}`, { method: "DELETE" });
+    loadRules();
+  } catch(e) {
+    alert("Failed to delete rule: " + e.message);
+  }
+}
+window.deleteRule = deleteRule;
+
+/* ═══════════════════════════════════════════════════════════ ANALYTICS ════ */
+async function loadAnalytics() {
+  const container = document.getElementById("analyticsContent");
+  try {
+    const data = await adminFetch("/api/admin/analytics");
+    container.innerHTML = `
+      <div class="kpi-grid" style="margin-bottom:var(--space-xl);">
+        <div class="kpi-card accent-blue"><div class="kpi-value">${data.total || 0}</div><div class="kpi-label">Total Student Results</div></div>
+        <div class="kpi-card accent-green"><div class="kpi-value">${fmtPct(data.passPercentage)}</div><div class="kpi-label">Overall Pass Percentage</div></div>
+        <div class="kpi-card accent-gold"><div class="kpi-value">${fmt2(data.averageSgpa)}</div><div class="kpi-label">Average SGPA</div></div>
+        <div class="kpi-card accent-ind"><div class="kpi-value">${data.totalBacklogs || 0}</div><div class="kpi-label">Total Backlogs</div></div>
+      </div>`;
+  } catch(e) {
+    container.innerHTML = `<div class="alert alert-error">⚠ ${esc(e.message)}</div>`;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════ STUDENTS ═════ */
 async function loadStudents() {
+  const container = document.getElementById("studentsListTable");
   try {
     const data = await adminFetch("/api/admin/students");
-    allStudents = data.students || [];
-    renderStudents(allStudents);
-    hideEl("studentsLoading");
-    showEl("studentsTable");
+    const students = data.students || [];
+    if (students.length === 0) {
+      container.innerHTML = `<p class="empty-sub">No registered students found.</p>`;
+      return;
+    }
+    container.innerHTML = `
+      <table class="data-table">
+        <thead>
+          <tr><th>Roll Number</th><th>Name</th><th>Dept</th><th>Category</th><th>Phone</th><th>Registered</th></tr>
+        </thead>
+        <tbody>
+          ${students.map(s => `
+            <tr>
+              <td><code>${esc(s.rollNumber)}</code></td>
+              <td>${esc(s.name)}</td>
+              <td>${esc(s.dept || "—")}</td>
+              <td>${esc(s.category || "Regular Entry")}</td>
+              <td>${esc(s.phone)}</td>
+              <td>${new Date(s.createdAt).toLocaleDateString()}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>`;
   } catch(e) {
-    console.error("Students load failed:", e.message);
+    container.innerHTML = `<div class="alert alert-error">⚠ ${esc(e.message)}</div>`;
   }
 }
 
-function renderStudents(list) {
-  document.getElementById("studentsTableBody").innerHTML = list.map((s,i)=>`
-    <tr>
-      <td>${i+1}</td>
-      <td style="font-weight:600;">${s.name||"—"}</td>
-      <td class="td-mono">${s.rollNumber||"—"}</td>
-      <td>${s.dept||"—"}</td>
-      <td>
-        ${s.category==="Lateral Entry"
-          ? '<span class="badge badge-blue">Lateral</span>'
-          : '<span class="badge badge-success">Regular</span>'}
-      </td>
-      <td class="td-num" style="color:var(--brand-primary);">${s.cgpa!=null?fmt2(s.cgpa):"—"}</td>
-      <td>${(s.semesters||[]).length}</td>
-    </tr>`).join("");
-}
+/* ═══════════════════════════════════════════════════════════ INIT ════════ */
+document.addEventListener("DOMContentLoaded", () => {
+  if (!guardAdminAuth()) return;
 
-function filterStudents() {
-  const q = document.getElementById("studentSearch").value.toLowerCase();
-  renderStudents(allStudents.filter(s =>
-    (s.name||"").toLowerCase().includes(q) ||
-    (s.rollNumber||"").toLowerCase().includes(q)
-  ));
-}
-window.filterStudents = filterStudents;
+  document.querySelectorAll(".nav-tab[data-tab]").forEach(btn => {
+    btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+  });
+
+  document.getElementById("adminLogoutBtn").addEventListener("click", () => {
+    localStorage.removeItem("gradewise_admin_token");
+    window.location.href = "login.html";
+  });
+
+  loadOverview();
+});

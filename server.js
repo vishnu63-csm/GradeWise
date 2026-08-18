@@ -14,6 +14,14 @@ const authRoutes = require("./routes/auth");
 const apiRoutes = require("./routes/api");
 const adminRoutes = require("./routes/admin");
 
+// Register all models (ensures indexes are created)
+require("./models/Student");
+require("./models/User");
+require("./models/Admin");
+require("./models/ResultUpload");
+require("./models/StudentResult");
+require("./models/RollNumberRule");
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;

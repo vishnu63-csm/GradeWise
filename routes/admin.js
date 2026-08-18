@@ -1,35 +1,68 @@
-const express = require("express");
-const router = express.Router();
-const multer = require("multer");
-const jwt = require("jsonwebtoken");
-const Admin = require("../models/Admin");
-const ResultBatch = require("../models/ResultBatch");
-const BatchStudentResult = require("../models/BatchStudentResult");
-const adminAuth = require("../middleware/adminAuth");
+/**
+ * routes/admin.js — GradeWise Admin API
+ *
+ * All routes below /api/admin/ (except /login) require admin JWT.
+ *
+ * Upload workflow:
+ *   POST /upload-pdf         → parse PDF → save as DRAFT → return preview
+ *   POST /upload/:id/publish → mark StudentResults as published, update upload status
+ *   POST /upload/:id/unpublish
+ *   GET  /uploads            → list all uploads
+ *   GET  /upload/:id         → detail + student results
+ *   DELETE /upload/:id       → delete upload + its results
+ *
+ * Roll Number Rules:
+ *   GET/POST /roll-rules
+ *   PUT/DELETE /roll-rules/:id
+ *
+ * Analytics:
+ *   GET /analytics
+ *
+ * Misc:
+ *   GET /dashboard
+ *   GET /students
+ */
+
+"use strict";
+
+const express  = require("express");
+const router   = express.Router();
+const multer   = require("multer");
+const jwt      = require("jsonwebtoken");
+const mongoose = require("mongoose");
+
+const Admin         = require("../models/Admin");
+const ResultUpload  = require("../models/ResultUpload");
+const StudentResult = require("../models/StudentResult");
+const RollNumberRule = require("../models/RollNumberRule");
+const adminAuth     = require("../middleware/adminAuth");
 const { parseResultPdf } = require("../utils/pdfParser");
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB limit
+  limits:  { fileSize: 20 * 1024 * 1024 }, // 20 MB
 });
 
 const JWT_SECRET = process.env.JWT_SECRET || "sgpa_jwt_secret_key_2024";
+const GRADE_POINTS = { S: 10, A: 9, B: 8, C: 7, D: 6, E: 5, F: 0, Ab: 0 };
 
+// ── Helper: make admin JWT ────────────────────────────────────────────────────
 function makeAdminToken(admin) {
   return jwt.sign(
-    {
-      id: admin._id,
-      username: admin.username,
-      name: admin.name,
-      role: admin.role,
-      isAdmin: true,
-    },
+    { id: admin._id, username: admin.username, name: admin.name, role: admin.role, isAdmin: true },
     JWT_SECRET,
     { expiresIn: "7d" }
   );
 }
 
-// ── 1. POST /api/admin/login ──────────────────────────────────────────────────
+// ── Helper: classify roll number via rules ────────────────────────────────────
+async function classifyRoll(rollNumber) {
+  const rule = await RollNumberRule.matchRoll(rollNumber);
+  if (!rule) return { department: "", admissionType: "Unknown" };
+  return { department: rule.department, admissionType: rule.admissionType };
+}
+
+// ── POST /api/admin/login ─────────────────────────────────────────────────────
 router.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -40,7 +73,6 @@ router.post("/login", async (req, res) => {
     const normUsername = username.trim().toLowerCase();
     let admin = await Admin.findOne({ username: normUsername });
 
-    // Seed default admin if no admin exists yet
     if (!admin) {
       const adminCount = await Admin.countDocuments();
       if (adminCount === 0 && (normUsername === "admin" || normUsername === "gradewiseadmin")) {
@@ -57,767 +89,576 @@ router.post("/login", async (req, res) => {
     }
 
     const isMatch = await admin.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({ error: "Invalid admin password." });
-    }
+    if (!isMatch) return res.status(401).json({ error: "Invalid admin password." });
 
     const token = makeAdminToken(admin);
-    res.json({
-      token,
-      admin: {
-        id: admin._id,
-        username: admin.username,
-        name: admin.name,
-        role: admin.role,
-      },
-    });
+    res.json({ token, admin: { id: admin._id, username: admin.username, name: admin.name, role: admin.role } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// ── All routes below require Admin Authorization ──────────────────────────────
+// ── All routes below require admin auth ───────────────────────────────────────
 router.use(adminAuth);
 
-// ── 2. POST /api/admin/upload-result ──────────────────────────────────────────
-router.post("/upload-result", upload.single("pdfFile"), async (req, res) => {
+// ── POST /api/admin/upload-pdf ────────────────────────────────────────────────
+// Step 1: Upload PDF, parse it, save all StudentResults as DRAFT
+router.post("/upload-pdf", upload.single("pdf"), async (req, res) => {
+  let uploadDoc = null;
   try {
-    let fileBuffer = req.file ? req.file.buffer : null;
-    let fileName = req.file ? req.file.originalname : "Uploaded_Result.pdf";
-    let fileSize = req.file ? req.file.size : 0;
+    const { semester, regulation, academicYear, examSession, examType } = req.body;
+    if (!semester) return res.status(400).json({ error: "Semester is required." });
 
-    // If text was pasted instead of file upload
-    if (!fileBuffer && req.body && req.body.pastedText) {
-      fileBuffer = Buffer.from(req.body.pastedText, "utf-8");
-      fileName = "Pasted_Result_Text.txt";
-      fileSize = fileBuffer.length;
+    const fileBuffer = req.file ? req.file.buffer : null;
+    const fileName   = req.file ? req.file.originalname : "paste.txt";
+    const fileSize   = req.file ? req.file.size : 0;
+
+    if (!fileBuffer && !req.body.pastedText) {
+      return res.status(400).json({ error: "No PDF file or pasted text provided." });
     }
 
-    if (!fileBuffer && (!req.body || !req.body.demo)) {
-      return res.status(400).json({ error: "Please upload a valid PDF file or paste result text." });
-    }
+    const buffer = fileBuffer || Buffer.from(req.body.pastedText, "utf8");
 
-    const parsed = await parseResultPdf(fileBuffer || "DEMO_BATCH_EXTRACTION");
-
-    // Compute validation status counts
-    const validCount = parsed.students.filter((s) => s.rollNumber && s.subjects.length > 0).length;
-    const invalidCount = parsed.students.length - validCount;
-    const duplicateCount = 0; // Check existing batch duplicates if needed
-
-    res.json({
-      fileName,
-      fileSize,
-      detectedSemester: parsed.semester,
-      detectedRegulation: parsed.regulation,
-      detectedDept: parsed.dept,
-      startRoll: parsed.startRoll,
-      endRoll: parsed.endRoll,
-      totalStudentsDetected: parsed.students.length,
-      validRecords: validCount,
-      invalidRecords: invalidCount,
-      duplicateRecords: duplicateCount,
-      recordsRequiringReview: invalidCount,
-      students: parsed.students,
-    });
-  } catch (err) {
-    res.status(500).json({ error: `PDF Processing Failed: ${err.message}` });
-  }
-});
-
-// ── 3. POST /api/admin/confirm-result ─────────────────────────────────────────
-router.post("/confirm-result", async (req, res) => {
-  try {
-    const {
-      fileName,
-      fileSize,
-      semester,
-      regulation,
-      dept,
-      students,
-      overrideStartRoll,
-      overrideEndRoll,
-    } = req.body;
-
-    if (!semester || !Array.isArray(students) || students.length === 0) {
-      return res.status(400).json({ error: "Semester and a non-empty list of student records are required." });
-    }
-
-    const totalStudents = students.length;
-    let passedStudents = 0;
-    let failedStudents = 0;
-    let totalPointsSum = 0;
-    let totalPctSum = 0;
-    let totalBacklogs = 0;
-    let studentsWithBacklogs = 0;
-
-    const sgpaList = [];
-    const pctList = [];
-
-    const gradeDist = { S: 0, A: 0, B: 0, C: 0, D: 0, E: 0, F: 0, Ab: 0 };
-    const backlogDist = { b0: 0, b1: 0, b2: 0, b3: 0, b4plus: 0 };
-    const sgpaDist = { range9_10: 0, range8_89: 0, range7_79: 0, range6_69: 0, range5_59: 0, below5: 0 };
-    const pctDist = { range90_100: 0, range80_89: 0, range70_79: 0, range60_69: 0, range50_59: 0, below50: 0 };
-
-    const subjectMap = new Map();
-
-    students.forEach((s) => {
-      const sgpa = Number(s.sgpa) || 0;
-      const pct = (sgpa - 0.75) * 10;
-      sgpaList.push(sgpa);
-      pctList.push(pct);
-
-      totalPointsSum += sgpa;
-      totalPctSum += pct;
-
-      const backlogs = Number(s.backlogCount) || 0;
-      totalBacklogs += backlogs;
-
-      if (backlogs === 0) {
-        passedStudents++;
-        backlogDist.b0++;
-      } else {
-        failedStudents++;
-        studentsWithBacklogs++;
-        if (backlogs === 1) backlogDist.b1++;
-        else if (backlogs === 2) backlogDist.b2++;
-        else if (backlogs === 3) backlogDist.b3++;
-        else backlogDist.b4plus++;
-      }
-
-      // SGPA Ranges
-      if (sgpa >= 9.0) sgpaDist.range9_10++;
-      else if (sgpa >= 8.0) sgpaDist.range8_89++;
-      else if (sgpa >= 7.0) sgpaDist.range7_79++;
-      else if (sgpa >= 6.0) sgpaDist.range6_69++;
-      else if (sgpa >= 5.0) sgpaDist.range5_59++;
-      else sgpaDist.below5++;
-
-      // Percentage Ranges
-      if (pct >= 90) pctDist.range90_100++;
-      else if (pct >= 80) pctDist.range80_89++;
-      else if (pct >= 70) pctDist.range70_79++;
-      else if (pct >= 60) pctDist.range60_69++;
-      else if (pct >= 50) pctDist.range50_59++;
-      else pctDist.below50++;
-
-      // Process subjects
-      (s.subjects || []).forEach((sub) => {
-        const g = sub.grade || "F";
-        if (gradeDist[g] !== undefined) gradeDist[g]++;
-
-        let stat = subjectMap.get(sub.name);
-        if (!stat) {
-          stat = {
-            code: sub.code || "",
-            name: sub.name,
-            credits: Number(sub.credits) || 3,
-            totalAttempted: 0,
-            passedCount: 0,
-            failedCount: 0,
-            gradeCounts: { S: 0, A: 0, B: 0, C: 0, D: 0, E: 0, F: 0, Ab: 0 },
-          };
-          subjectMap.set(sub.name, stat);
-        }
-
-        stat.totalAttempted++;
-        if (g === "F" || g === "Ab") {
-          stat.failedCount++;
-        } else {
-          stat.passedCount++;
-        }
-        if (stat.gradeCounts[g] !== undefined) stat.gradeCounts[g]++;
-      });
-    });
-
-    sgpaList.sort((a, b) => a - b);
-    pctList.sort((a, b) => a - b);
-
-    const passPercentage = totalStudents > 0 ? (passedStudents / totalStudents) * 100 : 0;
-    const failPercentage = totalStudents > 0 ? (failedStudents / totalStudents) * 100 : 0;
-    const averageSgpa = totalStudents > 0 ? totalPointsSum / totalStudents : 0;
-    const averagePercentage = totalStudents > 0 ? totalPctSum / totalStudents : 0;
-
-    const highestSgpa = sgpaList.length ? sgpaList[sgpaList.length - 1] : 0;
-    const lowestSgpa = sgpaList.length ? sgpaList[0] : 0;
-    const medianSgpa = sgpaList.length ? sgpaList[Math.floor(sgpaList.length / 2)] : 0;
-
-    const highestPercentage = pctList.length ? pctList[pctList.length - 1] : 0;
-    const lowestPercentage = pctList.length ? pctList[0] : 0;
-    const medianPercentage = pctList.length ? pctList[Math.floor(pctList.length / 2)] : 0;
-
-    // Convert subject stats map to array
-    const subjectStats = [];
-    subjectMap.forEach((val) => {
-      const passPct = val.totalAttempted > 0 ? (val.passedCount / val.totalAttempted) * 100 : 0;
-      const failPct = val.totalAttempted > 0 ? (val.failedCount / val.totalAttempted) * 100 : 0;
-      subjectStats.push({
-        ...val,
-        passPercentage: passPct,
-        failPercentage: failPct,
-      });
-    });
-
-    const startRoll = overrideStartRoll || (students[0] ? students[0].rollNumber : "");
-    const endRoll = overrideEndRoll || (students[students.length - 1] ? students[students.length - 1].rollNumber : "");
-
-    // Create ResultBatch document
-    const resultBatch = new ResultBatch({
-      fileName: fileName || "Semester_Result_Batch.pdf",
-      fileSize: fileSize || 0,
-      semester,
-      regulation: regulation || "R23",
-      dept: dept || "CSM",
+    // Create upload document immediately in PROCESSING state
+    uploadDoc = new ResultUpload({
+      fileName, fileSize,
       uploadedBy: req.admin.username || "Admin",
-      totalStudents,
-      passedStudents,
-      failedStudents,
-      passPercentage,
-      failPercentage,
-      averageSgpa,
-      highestSgpa,
-      lowestSgpa,
-      medianSgpa,
-      averagePercentage,
-      highestPercentage,
-      lowestPercentage,
-      medianPercentage,
-      totalBacklogs,
-      studentsWithBacklogs,
-      rollNumberRange: { startRoll, endRoll },
-      gradeDistribution: gradeDist,
-      backlogDistribution: backlogDist,
-      sgpaDistribution: sgpaDist,
-      percentageDistribution: pctDist,
-      subjectStats,
+      semester, regulation: regulation || "R23",
+      academicYear: academicYear || "",
+      examSession:  examSession  || "",
+      examType:     examType     || "Regular",
+      status: "PROCESSING",
     });
+    await uploadDoc.save();
 
-    await resultBatch.save();
+    // Parse PDF
+    const parsed = await parseResultPdf(buffer, { semester, regulation, academicYear, examSession, examType });
 
-    // Create BatchStudentResult documents
-    const batchStudentDocs = students.map((s) => ({
-      batchId: resultBatch._id,
-      rollNumber: s.rollNumber,
-      studentName: s.studentName || `Student ${s.rollNumber.slice(-4)}`,
-      semester,
-      regulation: regulation || "R23",
-      dept: dept || "CSM",
-      sgpa: Number(s.sgpa) || 0,
-      percentage: (Number(s.sgpa) - 0.75) * 10,
-      totalCredits: Number(s.totalCredits) || 0,
-      passed: s.passed !== undefined ? s.passed : (s.backlogCount || 0) === 0,
-      backlogCount: Number(s.backlogCount) || 0,
-      failedSubjects: s.failedSubjects || [],
-      subjects: s.subjects || [],
-    }));
-
-    await BatchStudentResult.insertMany(batchStudentDocs);
-
-    res.json({
-      message: "Result batch saved and analytics computed successfully!",
-      batchId: resultBatch._id,
-      resultBatch,
-    });
-  } catch (err) {
-    res.status(500).json({ error: `Save Failed: ${err.message}` });
-  }
-});
-
-// ── 4. GET /api/admin/analytics ───────────────────────────────────────────────
-router.get("/analytics", async (req, res) => {
-  try {
-    const {
-      batchId,
-      semester,
-      dept,
-      regulation,
-      startRoll,
-      endRoll,
-      minSgpa,
-      maxSgpa,
-      status, // "passed", "failed", "all"
-    } = req.query;
-
-    let query = {};
-    if (batchId) query.batchId = batchId;
-    if (semester) query.semester = semester;
-    if (dept) query.dept = dept;
-    if (regulation) query.regulation = regulation;
-    if (status === "passed") query.passed = true;
-    if (status === "failed") query.passed = false;
-
-    if (minSgpa || maxSgpa) {
-      query.sgpa = {};
-      if (minSgpa) query.sgpa.$gte = Number(minSgpa);
-      if (maxSgpa) query.sgpa.$lte = Number(maxSgpa);
-    }
-
-    if (startRoll && endRoll) {
-      query.rollNumber = { $gte: startRoll.toUpperCase(), $lte: endRoll.toUpperCase() };
-    }
-
-    const results = await BatchStudentResult.find(query).lean();
-    if (!results.length) {
+    if (parsed.extractedStudents.length === 0) {
+      uploadDoc.status = "NEEDS_REVIEW";
+      uploadDoc.notes  = parsed.warnings.join(" | ");
+      await uploadDoc.save();
       return res.json({
-        totalStudents: 0,
-        passedStudents: 0,
-        failedStudents: 0,
-        passPercentage: 0,
-        failPercentage: 0,
-        averageSgpa: 0,
-        highestSgpa: 0,
-        lowestSgpa: 0,
-        students: [],
-        subjectStats: [],
-        insights: ["No student result records found matching the selected filters."],
+        uploadId: uploadDoc._id,
+        status: "NEEDS_REVIEW",
+        warnings: parsed.warnings,
+        studentCount: 0,
+        needsReviewCount: 0,
+        validCount: 0,
       });
     }
 
-    const totalStudents = results.length;
-    let passedStudents = 0;
-    let failedStudents = 0;
-    let sgpaSum = 0;
-    let pctSum = 0;
-    let totalBacklogs = 0;
-    let studentsWithBacklogs = 0;
+    // Classify each roll number with rules, check for duplicates
+    const studentDocs = [];
+    let validCount = 0;
+    let needsReview = 0;
+    let dupCount    = 0;
+    const departments = new Set();
 
-    const sgpaList = [];
-    const gradeDist = { S: 0, A: 0, B: 0, C: 0, D: 0, E: 0, F: 0, Ab: 0 };
-    const backlogDist = { b0: 0, b1: 0, b2: 0, b3: 0, b4plus: 0 };
-    const sgpaDist = { range9_10: 0, range8_89: 0, range7_79: 0, range6_69: 0, range5_59: 0, below5: 0 };
-    const pctDist = { range90_100: 0, range80_89: 0, range70_79: 0, range60_69: 0, range50_59: 0, below50: 0 };
+    for (const s of parsed.extractedStudents) {
+      const { department, admissionType } = await classifyRoll(s.rollNumber);
+      if (department) departments.add(department);
 
-    const subjectMap = new Map();
+      // Duplicate check
+      const existing = await StudentResult.findOne({
+        rollNumber: s.rollNumber,
+        semester:   s.semester || semester,
+        regulation: s.regulation || regulation || "R23",
+        academicYear: s.academicYear || academicYear || "",
+        examSession:  s.examSession  || examSession  || "",
+        isPublished: true,
+      });
 
-    results.forEach((r) => {
-      const sgpa = r.sgpa || 0;
-      const pct = (sgpa - 0.75) * 10;
-      sgpaList.push(sgpa);
-      sgpaSum += sgpa;
-      pctSum += pct;
+      let valStatus  = s.validationStatus || "VALID";
+      let valNotes   = s.validationNotes  || "";
 
-      const backlogs = r.backlogCount || 0;
-      totalBacklogs += backlogs;
-
-      if (r.passed) {
-        passedStudents++;
-        backlogDist.b0++;
-      } else {
-        failedStudents++;
-        studentsWithBacklogs++;
-        if (backlogs === 1) backlogDist.b1++;
-        else if (backlogs === 2) backlogDist.b2++;
-        else if (backlogs === 3) backlogDist.b3++;
-        else backlogDist.b4plus++;
+      if (existing) {
+        dupCount++;
+        valStatus = "NEEDS_REVIEW";
+        valNotes  = (valNotes ? valNotes + " " : "") +
+          `Possible duplicate: a published result already exists for this semester/session.`;
       }
 
-      if (sgpa >= 9.0) sgpaDist.range9_10++;
-      else if (sgpa >= 8.0) sgpaDist.range8_89++;
-      else if (sgpa >= 7.0) sgpaDist.range7_79++;
-      else if (sgpa >= 6.0) sgpaDist.range6_69++;
-      else if (sgpa >= 5.0) sgpaDist.range5_59++;
-      else sgpaDist.below5++;
+      if (valStatus === "NEEDS_REVIEW") needsReview++;
+      else validCount++;
 
-      if (pct >= 90) pctDist.range90_100++;
-      else if (pct >= 80) pctDist.range80_89++;
-      else if (pct >= 70) pctDist.range70_79++;
-      else if (pct >= 60) pctDist.range60_69++;
-      else if (pct >= 50) pctDist.range50_59++;
-      else pctDist.below50++;
-
-      (r.subjects || []).forEach((sub) => {
-        const g = sub.grade || "F";
-        if (gradeDist[g] !== undefined) gradeDist[g]++;
-
-        let stat = subjectMap.get(sub.name);
-        if (!stat) {
-          stat = {
-            name: sub.name,
-            credits: sub.credits || 3,
-            totalAttempted: 0,
-            passedCount: 0,
-            failedCount: 0,
-          };
-          subjectMap.set(sub.name, stat);
-        }
-        stat.totalAttempted++;
-        if (g === "F" || g === "Ab") stat.failedCount++;
-        else stat.passedCount++;
+      studentDocs.push({
+        uploadId:      uploadDoc._id,
+        rollNumber:    s.rollNumber,
+        studentName:   s.studentName || "",
+        department,
+        admissionType,
+        semester:      s.semester    || semester,
+        regulation:    s.regulation  || regulation || "R23",
+        academicYear:  s.academicYear || academicYear || "",
+        examSession:   s.examSession  || examSession  || "",
+        examType:      s.examType     || examType     || "Regular",
+        sgpa:          s.sgpa         || 0,
+        percentage:    s.percentage   || 0,
+        totalCredits:  s.totalCredits || 0,
+        passed:        s.passed       ?? true,
+        backlogCount:  s.backlogCount || 0,
+        failedSubjects: s.failedSubjects || [],
+        subjects:      s.subjects     || [],
+        validationStatus: valStatus,
+        validationNotes:  valNotes,
+        isPublished:   false,
       });
-    });
-
-    sgpaList.sort((a, b) => a - b);
-
-    const passPercentage = (passedStudents / totalStudents) * 100;
-    const failPercentage = (failedStudents / totalStudents) * 100;
-    const averageSgpa = sgpaSum / totalStudents;
-    const averagePercentage = pctSum / totalStudents;
-    const highestSgpa = sgpaList[sgpaList.length - 1] || 0;
-    const lowestSgpa = sgpaList[0] || 0;
-
-    // Leaderboard sorted descending by SGPA
-    const leaderboard = [...results]
-      .sort((a, b) => b.sgpa - a.sgpa)
-      .map((r, idx) => ({
-        rank: idx + 1,
-        rollNumber: r.rollNumber,
-        studentName: r.studentName,
-        sgpa: r.sgpa,
-        percentage: r.percentage,
-        backlogCount: r.backlogCount,
-      }));
-
-    // Academic Attention list (failed or low SGPA)
-    const academicAttention = results
-      .filter((r) => !r.passed || r.sgpa < 6.0 || r.backlogCount > 0)
-      .sort((a, b) => a.sgpa - b.sgpa)
-      .map((r) => ({
-        rollNumber: r.rollNumber,
-        studentName: r.studentName,
-        sgpa: r.sgpa,
-        percentage: r.percentage,
-        backlogCount: r.backlogCount,
-        failedSubjects: r.failedSubjects,
-      }));
-
-    // Subject Performance list
-    const subjectStats = [];
-    subjectMap.forEach((val) => {
-      const passPct = val.totalAttempted > 0 ? (val.passedCount / val.totalAttempted) * 100 : 0;
-      const failPct = val.totalAttempted > 0 ? (val.failedCount / val.totalAttempted) * 100 : 0;
-      subjectStats.push({
-        ...val,
-        passPercentage: passPct,
-        failPercentage: failPct,
-      });
-    });
-
-    // Subject failure ranking (highest fail % first)
-    const subjectFailureRanking = [...subjectStats].sort((a, b) => b.failPercentage - a.failPercentage);
-    const bestSubject = [...subjectStats].sort((a, b) => b.passPercentage - a.passPercentage)[0];
-
-    // Dynamic Automatic Insights Generator
-    const insights = [];
-    insights.push(`${passPercentage.toFixed(2)}% of students passed this semester (${passedStudents} of ${totalStudents}).`);
-    if (bestSubject) {
-      insights.push(`"${bestSubject.name}" achieved the highest pass rate (${bestSubject.passPercentage.toFixed(2)}%).`);
     }
-    if (subjectFailureRanking.length > 0 && subjectFailureRanking[0].failPercentage > 0) {
-      insights.push(`"${subjectFailureRanking[0].name}" recorded the highest failure rate (${subjectFailureRanking[0].failPercentage.toFixed(2)}% with ${subjectFailureRanking[0].failedCount} failed students).`);
+
+    // Bulk insert student results
+    if (studentDocs.length > 0) {
+      await StudentResult.insertMany(studentDocs);
     }
-    if (sgpaDist.range9_10 > 0) {
-      insights.push(`${sgpaDist.range9_10} student(s) achieved an outstanding SGPA above 9.0.`);
-    }
-    if (studentsWithBacklogs > 0) {
-      insights.push(`${studentsWithBacklogs} student(s) currently have at least one active backlog.`);
-    }
+
+    // Update upload document
+    uploadDoc.status             = needsReview > 0 ? "NEEDS_REVIEW" : "DRAFT";
+    uploadDoc.detectedDepartments = [...departments];
+    uploadDoc.totalStudents       = studentDocs.length;
+    uploadDoc.validStudents       = validCount;
+    uploadDoc.invalidStudents     = 0;
+    uploadDoc.needsReviewCount    = needsReview;
+    uploadDoc.duplicateCount      = dupCount;
+    uploadDoc.notes               = parsed.warnings.join(" | ");
+    await uploadDoc.save();
 
     res.json({
-      totalStudents,
-      passedStudents,
-      failedStudents,
-      passPercentage,
-      failPercentage,
-      averageSgpa,
-      highestSgpa,
-      lowestSgpa,
-      averagePercentage,
-      totalBacklogs,
-      studentsWithBacklogs,
-      gradeDistribution: gradeDist,
-      backlogDistribution: backlogDist,
-      sgpaDistribution: sgpaDist,
-      percentageDistribution: pctDist,
-      subjectStats,
-      subjectFailureRanking,
-      leaderboard,
-      academicAttention,
-      insights,
+      uploadId:         uploadDoc._id,
+      status:           uploadDoc.status,
+      studentCount:     studentDocs.length,
+      validCount,
+      needsReviewCount: needsReview,
+      duplicateCount:   dupCount,
+      departments:      [...departments],
+      warnings:         parsed.warnings,
+      semester:         parsed.semester,
+      regulation:       parsed.regulation,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    if (uploadDoc) {
+      uploadDoc.status = "PUBLISH_FAILED";
+      uploadDoc.notes  = err.message;
+      await uploadDoc.save().catch(() => {});
+    }
+    res.status(500).json({ error: `Upload processing failed: ${err.message}` });
   }
 });
 
-// ── 5. GET /api/admin/result-history ──────────────────────────────────────────
-router.get("/result-history", async (req, res) => {
+// ── GET /api/admin/uploads ────────────────────────────────────────────────────
+router.get("/uploads", async (req, res) => {
   try {
-    const batches = await ResultBatch.find({}).sort({ createdAt: -1 }).lean();
-    res.json(batches);
+    const { status, semester, regulation } = req.query;
+    const query = {};
+    if (status)     query.status     = status;
+    if (semester)   query.semester   = semester;
+    if (regulation) query.regulation = regulation;
+
+    const uploads = await ResultUpload.find(query)
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean();
+
+    res.json({ uploads, total: uploads.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// ── 6. DELETE /api/admin/result-batch/:id ─────────────────────────────────────
-router.delete("/result-batch/:id", async (req, res) => {
+// ── GET /api/admin/upload/:id ─────────────────────────────────────────────────
+router.get("/upload/:id", async (req, res) => {
   try {
-    const { id } = req.params;
-    await ResultBatch.findByIdAndDelete(id);
-    await BatchStudentResult.deleteMany({ batchId: id });
-    res.json({ message: "Result batch archived and deleted successfully." });
+    const upload = await ResultUpload.findById(req.params.id).lean();
+    if (!upload) return res.status(404).json({ error: "Upload not found." });
+
+    const { page = 1, limit = 50, validationStatus } = req.query;
+    const query = { uploadId: req.params.id };
+    if (validationStatus) query.validationStatus = validationStatus;
+
+    const total   = await StudentResult.countDocuments(query);
+    const results = await StudentResult.find(query)
+      .skip((Number(page) - 1) * Number(limit))
+      .limit(Number(limit))
+      .lean();
+
+    res.json({ upload, results, total, page: Number(page), limit: Number(limit) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// ── 7. GET /api/admin/dashboard ───────────────────────────────────────────────
-// Returns overview stats + recent batches for the dashboard tab
+// ── PUT /api/admin/upload/:id/result/:resultId ────────────────────────────────
+// Admin edits a specific student result record before publishing
+router.put("/upload/:id/result/:resultId", async (req, res) => {
+  try {
+    const { resultId } = req.params;
+    const { studentName, subjects, validationStatus } = req.body;
+
+    const result = await StudentResult.findOne({ _id: resultId, uploadId: req.params.id });
+    if (!result) return res.status(404).json({ error: "Result not found." });
+    if (result.isPublished) return res.status(400).json({ error: "Cannot edit a published result." });
+
+    if (studentName !== undefined) result.studentName = studentName;
+    if (validationStatus) result.validationStatus = validationStatus;
+
+    if (Array.isArray(subjects) && subjects.length > 0) {
+      result.subjects = subjects;
+      // Recalculate SGPA
+      let totalCredits = 0, totalPoints = 0, backlogs = 0;
+      const failedSubs = [];
+      for (const s of subjects) {
+        const gp = GRADE_POINTS[s.grade] !== undefined ? GRADE_POINTS[s.grade] : 0;
+        totalCredits += s.credits || 0;
+        totalPoints  += (s.credits || 0) * gp;
+        if (!s.passed) { backlogs++; failedSubs.push(s.name); }
+      }
+      result.totalCredits  = totalCredits;
+      result.sgpa          = totalCredits > 0 ? totalPoints / totalCredits : 0;
+      result.percentage    = (result.sgpa - 0.75) * 10;
+      result.backlogCount  = backlogs;
+      result.failedSubjects = failedSubs;
+      result.passed        = backlogs === 0;
+    }
+
+    await result.save();
+    res.json({ message: "Result updated.", result: result.toObject() });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── POST /api/admin/upload/:id/publish ───────────────────────────────────────
+// Publishes all VALID results in the upload
+router.post("/upload/:id/publish", async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const uploadDoc = await ResultUpload.findById(req.params.id).session(session);
+    if (!uploadDoc) {
+      await session.abortTransaction();
+      return res.status(404).json({ error: "Upload not found." });
+    }
+    if (uploadDoc.status === "PUBLISHED") {
+      await session.abortTransaction();
+      return res.status(400).json({ error: "This upload is already published." });
+    }
+
+    uploadDoc.status = "PUBLISHING";
+    await uploadDoc.save({ session });
+
+    const now = new Date();
+
+    // Publish only VALID records (skip NEEDS_REVIEW unless admin forces)
+    const forcePublishAll = req.body.forcePublishAll === true;
+    const resultFilter = { uploadId: uploadDoc._id, isPublished: false };
+    if (!forcePublishAll) {
+      resultFilter.validationStatus = { $in: ["VALID"] };
+    }
+
+    const updateResult = await StudentResult.updateMany(
+      resultFilter,
+      { $set: { isPublished: true, publishedAt: now } },
+      { session }
+    );
+
+    // Recalculate analytics
+    const published = await StudentResult.find({ uploadId: uploadDoc._id, isPublished: true }).lean();
+    const total     = published.length;
+    const passed    = published.filter(r => r.passed).length;
+    const sgpas     = published.map(r => r.sgpa).filter(n => n > 0).sort((a, b) => a - b);
+    const avgSgpa   = sgpas.length ? sgpas.reduce((a, b) => a + b, 0) / sgpas.length : 0;
+    const backlogs  = published.reduce((a, r) => a + r.backlogCount, 0);
+
+    uploadDoc.status       = "PUBLISHED";
+    uploadDoc.publishedAt  = now;
+    uploadDoc.validStudents = total;
+    uploadDoc.analytics    = {
+      passedStudents:  passed,
+      failedStudents:  total - passed,
+      passPercentage:  total > 0 ? (passed / total) * 100 : 0,
+      averageSgpa:     avgSgpa,
+      highestSgpa:     sgpas[sgpas.length - 1] || 0,
+      lowestSgpa:      sgpas[0] || 0,
+      totalBacklogs:   backlogs,
+    };
+    await uploadDoc.save({ session });
+
+    await session.commitTransaction();
+    res.json({
+      message:        `Published ${updateResult.modifiedCount} results successfully.`,
+      publishedCount: updateResult.modifiedCount,
+      analytics:      uploadDoc.analytics,
+    });
+  } catch (err) {
+    await session.abortTransaction();
+    // Mark as failed
+    await ResultUpload.findByIdAndUpdate(req.params.id, { status: "PUBLISH_FAILED", notes: err.message });
+    res.status(500).json({ error: `Publishing failed: ${err.message}` });
+  } finally {
+    session.endSession();
+  }
+});
+
+// ── POST /api/admin/upload/:id/unpublish ─────────────────────────────────────
+router.post("/upload/:id/unpublish", async (req, res) => {
+  try {
+    const uploadDoc = await ResultUpload.findById(req.params.id);
+    if (!uploadDoc) return res.status(404).json({ error: "Upload not found." });
+    if (uploadDoc.status !== "PUBLISHED") {
+      return res.status(400).json({ error: "Upload is not currently published." });
+    }
+
+    await StudentResult.updateMany(
+      { uploadId: uploadDoc._id },
+      { $set: { isPublished: false, publishedAt: null } }
+    );
+
+    uploadDoc.status      = "DRAFT";
+    uploadDoc.publishedAt = null;
+    await uploadDoc.save();
+
+    res.json({ message: "Upload unpublished. Students can no longer see these results." });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── DELETE /api/admin/upload/:id ──────────────────────────────────────────────
+router.delete("/upload/:id", async (req, res) => {
+  try {
+    const uploadDoc = await ResultUpload.findById(req.params.id);
+    if (!uploadDoc) return res.status(404).json({ error: "Upload not found." });
+    if (uploadDoc.status === "PUBLISHED") {
+      return res.status(400).json({ error: "Cannot delete a published upload. Unpublish first." });
+    }
+
+    await StudentResult.deleteMany({ uploadId: uploadDoc._id });
+    await ResultUpload.findByIdAndDelete(req.params.id);
+
+    res.json({ message: "Upload and all associated results deleted." });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/admin/roll-rules ─────────────────────────────────────────────────
+router.get("/roll-rules", async (req, res) => {
+  try {
+    const rules = await RollNumberRule.find({}).sort({ pattern: 1 }).lean();
+    res.json({ rules, total: rules.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── POST /api/admin/roll-rules ────────────────────────────────────────────────
+router.post("/roll-rules", async (req, res) => {
+  try {
+    const { pattern, department, departmentCode, admissionType, regulation, academicYear, description } = req.body;
+    if (!pattern || !department || !admissionType) {
+      return res.status(400).json({ error: "pattern, department, and admissionType are required." });
+    }
+    const rule = new RollNumberRule({
+      pattern: pattern.trim().toUpperCase(),
+      department, departmentCode, admissionType,
+      regulation: regulation || "R23",
+      academicYear: academicYear || "",
+      description: description || "",
+    });
+    await rule.save();
+    res.status(201).json({ message: "Roll number rule created.", rule: rule.toObject() });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({ error: `A rule for pattern "${req.body.pattern}" already exists.` });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── PUT /api/admin/roll-rules/:id ─────────────────────────────────────────────
+router.put("/roll-rules/:id", async (req, res) => {
+  try {
+    const rule = await RollNumberRule.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true, runValidators: true }
+    );
+    if (!rule) return res.status(404).json({ error: "Rule not found." });
+    res.json({ message: "Rule updated.", rule: rule.toObject() });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── DELETE /api/admin/roll-rules/:id ──────────────────────────────────────────
+router.delete("/roll-rules/:id", async (req, res) => {
+  try {
+    const rule = await RollNumberRule.findByIdAndDelete(req.params.id);
+    if (!rule) return res.status(404).json({ error: "Rule not found." });
+    res.json({ message: "Rule deleted." });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/admin/dashboard ──────────────────────────────────────────────────
 router.get("/dashboard", async (req, res) => {
   try {
     const Student = require("../models/Student");
-    const batches = await ResultBatch.find({}).sort({ createdAt: -1 }).lean();
     const totalStudents = await Student.countDocuments({});
+    const publishedUploads = await ResultUpload.countDocuments({ status: "PUBLISHED" });
+    const publishedResults = await StudentResult.countDocuments({ isPublished: true });
 
-    let totalPassed = 0, totalFailed = 0, sgpaSum = 0, batchCount = 0;
-    batches.forEach(b => {
-      totalPassed += b.passedStudents || 0;
-      totalFailed += b.failedStudents || 0;
-      if (b.averageSgpa) { sgpaSum += b.averageSgpa; batchCount++; }
-    });
+    const passStats = await StudentResult.aggregate([
+      { $match: { isPublished: true } },
+      { $group: {
+        _id: null,
+        total: { $sum: 1 },
+        passed: { $sum: { $cond: ["$passed", 1, 0] } },
+        backlogs: { $sum: "$backlogCount" },
+      }},
+    ]);
 
-    const totalInBatches = totalPassed + totalFailed;
+    const s = passStats[0] || { total: 0, passed: 0, backlogs: 0 };
+    const passPercentage = s.total > 0 ? (s.passed / s.total) * 100 : null;
+
+    const recentUploads = await ResultUpload.find({})
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .lean();
+
     res.json({
-      batches: batches.map(b => ({
-        _id: b._id,
-        dept: b.dept,
-        semester: b.semester,
-        academicYear: b.academicYear || "",
-        regulation: b.regulation,
-        totalStudents: b.totalStudents,
-        passedStudents: b.passedStudents,
-        failedStudents: b.failedStudents,
-        avgSgpa: b.averageSgpa,
-        passRate: b.passPercentage,
-        createdAt: b.createdAt,
-      })),
       totalStudents,
-      avgSgpa: batchCount > 0 ? sgpaSum / batchCount : null,
-      totalPassed,
-      totalFailed,
-      passRate: totalInBatches > 0 ? (totalPassed / totalInBatches) * 100 : null,
+      publishedUploads,
+      publishedResults,
+      passPercentage,
+      studentsWithBacklogs: s.backlogs,
+      recentUploads,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// ── 8. POST /api/admin/upload-pdf ─────────────────────────────────────────────
-// Accepts a PDF upload with batch metadata, parses it, returns preview
-router.post("/upload-pdf", upload.single("pdf"), async (req, res) => {
+// ── GET /api/admin/analytics ──────────────────────────────────────────────────
+router.get("/analytics", async (req, res) => {
   try {
-    const { academicYear, semester, dept, regulation } = req.body;
-    if (!semester || !dept) {
-      return res.status(400).json({ error: "Semester and Department are required." });
-    }
+    const { semester, regulation, department, academicYear, admissionType, uploadId } = req.query;
 
-    let fileBuffer = req.file ? req.file.buffer : null;
-    const fileName = req.file ? req.file.originalname : "result.pdf";
-    const fileSize = req.file ? req.file.size : 0;
+    const match = { isPublished: true };
+    if (semester)      match.semester      = semester;
+    if (regulation)    match.regulation    = regulation;
+    if (department)    match.department    = department;
+    if (academicYear)  match.academicYear  = academicYear;
+    if (admissionType) match.admissionType = admissionType;
+    if (uploadId)      match.uploadId      = new mongoose.Types.ObjectId(uploadId);
 
-    if (!fileBuffer) {
-      return res.status(400).json({ error: "No PDF file provided." });
-    }
+    // Overall stats
+    const stats = await StudentResult.aggregate([
+      { $match: match },
+      { $group: {
+        _id: null,
+        total:       { $sum: 1 },
+        passed:      { $sum: { $cond: ["$passed", 1, 0] } },
+        avgSgpa:     { $avg: "$sgpa" },
+        maxSgpa:     { $max: "$sgpa" },
+        minSgpa:     { $min: "$sgpa" },
+        totalBacklogs: { $sum: "$backlogCount" },
+      }},
+    ]);
 
-    const parsed = await parseResultPdf(fileBuffer);
+    // Department breakdown
+    const deptBreakdown = await StudentResult.aggregate([
+      { $match: match },
+      { $group: {
+        _id: { dept: "$department", type: "$admissionType" },
+        total:  { $sum: 1 },
+        passed: { $sum: { $cond: ["$passed", 1, 0] } },
+        avgSgpa: { $avg: "$sgpa" },
+      }},
+      { $sort: { "_id.dept": 1, "_id.type": 1 } },
+    ]);
 
-    // Save a provisional ResultBatch as "draft"
-    const draftBatch = new ResultBatch({
-      fileName,
-      fileSize,
-      semester,
-      regulation: regulation || "R23",
-      dept,
-      academicYear: academicYear || "",
-      uploadedBy: req.admin.username || "Admin",
-      totalStudents: parsed.students.length,
-      isDraft: true,
-    });
-    await draftBatch.save();
+    // Subject analysis (pass rate per subject)
+    const subjectStats = await StudentResult.aggregate([
+      { $match: match },
+      { $unwind: "$subjects" },
+      { $group: {
+        _id: { code: "$subjects.code", name: "$subjects.name" },
+        total:    { $sum: 1 },
+        passed:   { $sum: { $cond: ["$subjects.passed", 1, 0] } },
+        failed:   { $sum: { $cond: [{ $not: "$subjects.passed" }, 1, 0] } },
+        avgGrade: { $avg: "$subjects.gradePoint" },
+      }},
+      { $addFields: { passRate: { $multiply: [{ $divide: ["$passed", "$total"] }, 100] } } },
+      { $sort: { passRate: 1 } },
+      { $limit: 50 },
+    ]);
 
-    // Store draft student results for confirmation step
-    if (parsed.students.length > 0) {
-      const docs = parsed.students.map(s => ({
-        batchId: draftBatch._id,
-        rollNumber: s.rollNumber || "",
-        studentName: s.studentName || "",
-        semester,
-        regulation: regulation || "R23",
-        dept,
-        sgpa: Number(s.sgpa) || 0,
-        percentage: (Number(s.sgpa) - 0.75) * 10,
-        totalCredits: Number(s.totalCredits) || 0,
-        passed: (s.backlogCount || 0) === 0,
-        backlogCount: Number(s.backlogCount) || 0,
-        failedSubjects: s.failedSubjects || [],
-        subjects: s.subjects || [],
-        isDraft: true,
-      }));
-      await BatchStudentResult.insertMany(docs);
-    }
+    // Top students
+    const topStudents = await StudentResult.find(match)
+      .sort({ sgpa: -1 })
+      .limit(10)
+      .select("rollNumber studentName sgpa percentage department admissionType semester")
+      .lean();
 
-    const total = parsed.students.length;
-    const passed = parsed.students.filter(s => (s.backlogCount || 0) === 0).length;
-    const avgSgpa = total > 0
-      ? parsed.students.reduce((a, s) => a + (Number(s.sgpa) || 0), 0) / total
-      : 0;
+    // Students with backlogs
+    const backlogStudents = await StudentResult.find({ ...match, backlogCount: { $gt: 0 } })
+      .sort({ backlogCount: -1 })
+      .limit(20)
+      .select("rollNumber studentName sgpa backlogCount failedSubjects department semester")
+      .lean();
 
+    const s = stats[0] || {};
     res.json({
-      batchId: draftBatch._id,
-      studentCount: total,
-      avgSgpa,
-      passRate: total > 0 ? (passed / total) * 100 : 0,
-      students: parsed.students,
-    });
-  } catch (err) {
-    res.status(500).json({ error: `PDF Processing Failed: ${err.message}` });
-  }
-});
-
-// ── 9. POST /api/admin/batch/:id/confirm ──────────────────────────────────────
-// Promotes a draft batch to confirmed status
-router.post("/batch/:id/confirm", async (req, res) => {
-  try {
-    const batch = await ResultBatch.findById(req.params.id);
-    if (!batch) return res.status(404).json({ error: "Batch not found." });
-
-    const results = await BatchStudentResult.find({ batchId: batch._id }).lean();
-    const total = results.length;
-    const passed = results.filter(r => r.passed).length;
-    const failed = total - passed;
-    const sgpaSum = results.reduce((a, r) => a + r.sgpa, 0);
-    const avgSgpa = total > 0 ? sgpaSum / total : 0;
-
-    batch.isDraft = false;
-    batch.passedStudents = passed;
-    batch.failedStudents = failed;
-    batch.passPercentage = total > 0 ? (passed / total) * 100 : 0;
-    batch.failPercentage = total > 0 ? (failed / total) * 100 : 0;
-    batch.averageSgpa = avgSgpa;
-    await batch.save();
-
-    await BatchStudentResult.updateMany({ batchId: batch._id }, { $unset: { isDraft: "" } });
-
-    res.json({ message: "Batch confirmed.", batchId: batch._id });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ── 10. POST /api/admin/batch/manual ─────────────────────────────────────────
-// Submit a manually entered result batch
-router.post("/batch/manual", async (req, res) => {
-  try {
-    const { academicYear, semester, dept, regulation, students } = req.body;
-    if (!semester || !dept || !Array.isArray(students) || !students.length) {
-      return res.status(400).json({ error: "Semester, Department, and at least one student are required." });
-    }
-
-    const total = students.length;
-    let passed = 0, failed = 0, sgpaSum = 0;
-    students.forEach(s => {
-      const hasBlog = s.backlogs && s.backlogs.length > 0;
-      if (!hasBlog) passed++; else failed++;
-      sgpaSum += Number(s.sgpa) || 0;
-    });
-    const avgSgpa = total > 0 ? sgpaSum / total : 0;
-
-    const batch = new ResultBatch({
-      fileName: "Manual_Entry.csv",
-      fileSize: 0,
-      semester,
-      regulation: regulation || "R23",
-      dept,
-      academicYear: academicYear || "",
-      uploadedBy: req.admin.username || "Admin",
-      totalStudents: total,
-      passedStudents: passed,
-      failedStudents: failed,
-      passPercentage: total > 0 ? (passed / total) * 100 : 0,
-      failPercentage: total > 0 ? (failed / total) * 100 : 0,
-      averageSgpa: avgSgpa,
-    });
-    await batch.save();
-
-    const docs = students.map(s => ({
-      batchId: batch._id,
-      rollNumber: s.roll || s.rollNumber || "",
-      studentName: s.name || s.studentName || "",
-      semester,
-      regulation: regulation || "R23",
-      dept,
-      sgpa: Number(s.sgpa) || 0,
-      percentage: (Number(s.sgpa) - 0.75) * 10,
-      totalCredits: Number(s.credits) || 0,
-      passed: !(s.backlogs && s.backlogs.length > 0),
-      backlogCount: s.backlogs ? s.backlogs.length : 0,
-      failedSubjects: s.backlogs || [],
-      subjects: [],
-    }));
-    await BatchStudentResult.insertMany(docs);
-
-    res.json({ message: "Manual batch saved.", batchId: batch._id, totalStudents: total });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ── 11. GET /api/admin/batch/:id/analytics ────────────────────────────────────
-// Returns full analytics for a single batch
-router.get("/batch/:id/analytics", async (req, res) => {
-  try {
-    const batch = await ResultBatch.findById(req.params.id).lean();
-    if (!batch) return res.status(404).json({ error: "Batch not found." });
-
-    const results = await BatchStudentResult.find({ batchId: req.params.id }).lean();
-
-    res.json({
-      batch,
-      students: results.map(r => ({
-        name: r.studentName,
-        roll: r.rollNumber,
-        sgpa: r.sgpa,
-        credits: r.totalCredits,
-        backlogs: r.failedSubjects || [],
-        passed: r.passed,
-      })),
+      total:            s.total || 0,
+      passed:           s.passed || 0,
+      failed:           (s.total || 0) - (s.passed || 0),
+      passPercentage:   s.total > 0 ? (s.passed / s.total) * 100 : 0,
+      averageSgpa:      s.avgSgpa || 0,
+      highestSgpa:      s.maxSgpa || 0,
+      lowestSgpa:       s.minSgpa || 0,
+      totalBacklogs:    s.totalBacklogs || 0,
+      deptBreakdown,
+      subjectStats,
+      topStudents,
+      backlogStudents,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// ── 12. GET /api/admin/students ───────────────────────────────────────────────
-// Returns all registered students (for admin overview)
+// ── GET /api/admin/students ───────────────────────────────────────────────────
 router.get("/students", async (req, res) => {
   try {
     const Student = require("../models/Student");
-    const students = await Student.find({}, {
-      name: 1, rollNumber: 1, dept: 1, category: 1,
-      semesters: 1, cgpa: 1, phone: 1,
-    }).lean();
+    const { page = 1, limit = 50, search } = req.query;
+    const query = search
+      ? { $or: [
+          { rollNumber: { $regex: search, $options: "i" } },
+          { name:       { $regex: search, $options: "i" } },
+        ]}
+      : {};
 
-    // Compute CGPA for each if not stored
-    const GRADE_POINTS = { S:10,A:9,B:8,C:7,D:6,E:5,F:0,Ab:0 };
-    const mapped = students.map(s => {
-      let totalC = 0, weighted = 0;
-      (s.semesters || []).forEach(sem => {
-        if (s.category === "Lateral Entry" && (sem.semester === "1-1" || sem.semester === "1-2")) return;
-        totalC += sem.credits || 0;
-        weighted += (sem.credits || 0) * (sem.sgpa || 0);
-      });
-      const cgpa = totalC > 0 ? weighted / totalC : null;
-      return {
-        name: s.name,
-        rollNumber: s.rollNumber,
-        dept: s.dept,
-        category: s.category,
-        semesters: s.semesters || [],
-        cgpa: s.cgpa != null ? s.cgpa : cgpa,
-        phone: s.phone,
-      };
-    });
+    const total    = await Student.countDocuments(query);
+    const students = await Student.find(query, {
+      name: 1, rollNumber: 1, dept: 1, category: 1, phone: 1, createdAt: 1,
+    })
+      .skip((Number(page) - 1) * Number(limit))
+      .limit(Number(limit))
+      .lean();
 
-    res.json({ students: mapped, total: mapped.length });
+    res.json({ students, total, page: Number(page), limit: Number(limit) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Legacy result-history for backward compat ─────────────────────────────────
+router.get("/result-history", async (req, res) => {
+  try {
+    const uploads = await ResultUpload.find({}).sort({ createdAt: -1 }).lean();
+    res.json(uploads);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Student = require("../models/Student");
+const StudentResult = require("../models/StudentResult");
 const authMiddleware = require("../middleware/auth");
 
 const GRADE_POINTS = { S: 10, A: 9, B: 8, C: 7, D: 6, E: 5, F: 0, Ab: 0 };
@@ -127,6 +128,67 @@ router.put("/student/category", async (req, res) => {
     const studentPlain = student.toObject();
     const derived = computeCgpaFromSemesters(studentPlain.semesters, studentPlain.category);
     res.json({ ...studentPlain, ...(derived || {}) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/student/results — all published results for this student
+router.get("/student/results", async (req, res) => {
+  try {
+    const roll = req.user.rollNumber;
+    if (!roll) return res.status(400).json({ error: "No roll number on account." });
+
+    const results = await StudentResult.find({
+      rollNumber: roll,
+      isPublished: true,
+    })
+      .sort({ semester: 1, publishedAt: -1 })
+      .lean();
+
+    res.json({ results, total: results.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/student/results/latest — most recently published result
+router.get("/student/results/latest", async (req, res) => {
+  try {
+    const roll = req.user.rollNumber;
+    if (!roll) return res.status(400).json({ error: "No roll number on account." });
+
+    const result = await StudentResult.findOne({
+      rollNumber: roll,
+      isPublished: true,
+    })
+      .sort({ publishedAt: -1 })
+      .lean();
+
+    if (!result) return res.json({ result: null });
+    res.json({ result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/student/results/:semester — result for a specific semester
+router.get("/student/results/:semester", async (req, res) => {
+  try {
+    const roll = req.user.rollNumber;
+    const { semester } = req.params;
+    if (!roll) return res.status(400).json({ error: "No roll number on account." });
+
+    const result = await StudentResult.findOne({
+      rollNumber: roll,
+      semester,
+      isPublished: true,
+    })
+      .sort({ publishedAt: -1 })
+      .lean();
+
+    if (!result) return res.status(404).json({ error: "No published result found for this semester." });
+    res.json({ result });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

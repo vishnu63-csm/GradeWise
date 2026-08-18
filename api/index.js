@@ -1,4 +1,4 @@
-// api/index.js — Vercel Serverless Entry Point (Optimized for cold-start speed)
+// api/index.js — Vercel Serverless Entry Point
 "use strict";
 
 require("dotenv").config();
@@ -15,12 +15,12 @@ mongoose.set("bufferCommands", false);
 const app = express();
 
 app.use(cors());
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "10mb" }));
 
 // Serve static files from bundled public/ directory
 const PUBLIC_DIR = path.join(__dirname, "../public");
 app.use(express.static(PUBLIC_DIR, {
-  maxAge: "1d",          // Cache static assets in browser for 1 day
+  maxAge: "1d",
   etag: true,
   lastModified: true,
 }));
@@ -29,6 +29,14 @@ app.use(express.static(PUBLIC_DIR, {
 const authRoutes  = require("../routes/auth");
 const apiRoutes   = require("../routes/api");
 const adminRoutes = require("../routes/admin");
+
+// Force-register all models so their indexes get created at startup
+require("../models/Student");
+require("../models/User");
+require("../models/Admin");
+require("../models/ResultUpload");
+require("../models/StudentResult");
+require("../models/RollNumberRule");
 
 app.use("/api/auth",  authRoutes);
 app.use("/api/admin", adminRoutes);
