@@ -4,7 +4,7 @@
 /* ── State & Auth ───────────────────────────────────────────────────────── */
 function getAdminToken() { return localStorage.getItem("gradewise_admin_token") || ""; }
 function guardAdminAuth() {
-  if (!getAdminToken()) { window.location.href = "login.html"; return false; }
+  if (!getAdminToken()) { window.location.href = "admin-login.html"; return false; }
   return true;
 }
 
@@ -18,7 +18,7 @@ async function adminFetch(url, opts = {}) {
   });
   const data = await res.json();
   if (!res.ok) {
-    if (res.status === 401) { window.location.href = "login.html"; }
+    if (res.status === 401) { window.location.href = "admin-login.html"; }
     throw new Error(data.error || "Request failed");
   }
   return data;
@@ -447,7 +447,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("adminLogoutBtn").addEventListener("click", () => {
     localStorage.removeItem("gradewise_admin_token");
-    window.location.href = "login.html";
+    localStorage.removeItem("gradewise_admin");
+    window.location.href = "admin-login.html";
   });
 
   loadOverview();

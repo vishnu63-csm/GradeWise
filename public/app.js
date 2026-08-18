@@ -147,19 +147,29 @@ function renderLatestResultBanner(result) {
   const statusClass = result.passed ? "badge-success" : "badge-danger";
   const statusText  = result.passed ? "PASS" : "FAIL";
   const semLabel = SEM_LABELS[result.semester] || result.semester;
+  const backlogs = result.backlogCount || 0;
+
   banner.innerHTML = `
     <div class="result-banner">
-      <div class="result-banner-badge">🔔 New Result Available</div>
-      <div class="result-banner-content">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
         <div>
-          <div class="result-banner-title">${esc(semLabel)} Semester Results</div>
-          <div class="result-banner-meta">${esc(result.regulation)} • ${esc(result.examType)} • ${esc(result.examSession)}</div>
-          <div style="margin-top:8px;">
-            <span class="badge ${statusClass}" style="font-size:13px;padding:4px 12px;">${statusText}</span>
-            ${result.sgpa ? `<span style="margin-left:8px;font-weight:600;color:var(--text-primary);">SGPA: ${fmt2(result.sgpa)}</span>` : ""}
-          </div>
+          <div class="result-banner-badge">🎉 LATEST PUBLISHED RESULT</div>
+          <div class="result-banner-title" style="font-size:1.6rem;">${esc(semLabel)} Semester</div>
+          <div class="result-banner-meta">${esc(result.regulation||"R23")} • ${esc(result.examType||"Regular")} • ${esc(result.examSession||"")}</div>
         </div>
-        <button class="btn btn-primary" onclick="switchTab('results')">View Full Result →</button>
+        <div>
+          <span class="badge ${statusClass}" style="font-size:15px;padding:6px 18px;letter-spacing:0.5px;">${statusText}</span>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(110px, 1fr));gap:12px;background:rgba(255,255,255,0.1);padding:16px;border-radius:12px;margin-bottom:16px;backdrop-filter:blur(4px);">
+        <div><div style="font-size:11px;color:#C7D2FE;text-transform:uppercase;font-weight:600;">SGPA</div><div style="font-family:var(--font-head);font-size:1.4rem;font-weight:800;color:white;">${fmt2(result.sgpa)}</div></div>
+        <div><div style="font-size:11px;color:#C7D2FE;text-transform:uppercase;font-weight:600;">Percentage</div><div style="font-family:var(--font-head);font-size:1.4rem;font-weight:800;color:white;">${fmtPct(result.percentage)}</div></div>
+        <div><div style="font-size:11px;color:#C7D2FE;text-transform:uppercase;font-weight:600;">Credits</div><div style="font-family:var(--font-head);font-size:1.4rem;font-weight:800;color:white;">${result.totalCredits||0}</div></div>
+        <div><div style="font-size:11px;color:#C7D2FE;text-transform:uppercase;font-weight:600;">Backlogs</div><div style="font-family:var(--font-head);font-size:1.4rem;font-weight:800;color:${backlogs>0?"#FCA5A5":"white"};">${backlogs}</div></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+        <span style="font-size:12px;color:#E0E7FF;">Published ${timeAgo(result.publishedAt)}</span>
+        <button class="btn btn-primary" style="background:white;color:#1E1B4B;font-weight:700;" onclick="switchTab('results')">View Full Result →</button>
       </div>
     </div>`;
   banner.style.display = "";

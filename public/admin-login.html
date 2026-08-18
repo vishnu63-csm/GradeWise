@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>🔒 GradeWise — Admin Login</title>
+<meta name="description" content="Admin Login Portal for GradeWise Result Management System."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="auth.css"/>
+<style>
+  .admin-title-badge { display: inline-block; background: rgba(225,29,72,0.1); color: #E11D48; border: 1px solid rgba(225,29,72,0.2); font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 12px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .btn-auth-admin { background: linear-gradient(135deg, #E11D48 0%, #BE123C 100%) !important; }
+</style>
+</head>
+<body>
+  <div class="auth-bg">
+    <div class="orb orb-1" style="background:rgba(225,29,72,0.15);"></div>
+    <div class="orb orb-2"></div>
+  </div>
+
+  <main class="auth-center">
+    <div class="auth-card" id="authCard">
+      <!-- Logo / Brand -->
+      <div class="brand">
+        <div class="brand-icon" style="border-color:#E11D48;">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="14" r="13" stroke="#E11D48" stroke-width="2"/>
+            <text x="14" y="19" text-anchor="middle" font-size="11" font-family="IBM Plex Mono" fill="#E11D48" font-weight="700">ADM</text>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">GradeWise</span>
+          <span class="brand-sub">Admin Result Portal</span>
+        </div>
+      </div>
+
+      <div class="admin-title-badge">Administrator Portal</div>
+      <h1 class="auth-title">Admin Sign In</h1>
+      <p class="auth-desc">Enter administrator credentials to access result management</p>
+
+      <form id="adminLoginForm" novalidate>
+        <div class="field-group">
+          <label for="adminUsername" class="field-label">Username</label>
+          <div class="input-wrap">
+            <svg class="input-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M10 2a4 4 0 100 8 4 4 0 000-8zM2 18a8 8 0 1116 0H2z"/>
+            </svg>
+            <input id="adminUsername" type="text" class="field-input" placeholder="e.g. gradewiseadmin" required autocomplete="username" spellcheck="false"/>
+          </div>
+        </div>
+        <div class="field-group">
+          <label for="adminPassword" class="field-label">Password</label>
+          <div class="input-wrap">
+            <svg class="input-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
+            </svg>
+            <input id="adminPassword" type="password" class="field-input" placeholder="Admin password" required autocomplete="current-password"/>
+          </div>
+        </div>
+
+        <div class="error-msg" id="errorMsg"></div>
+
+        <button type="submit" class="btn-auth btn-auth-admin" id="submitBtn">
+          <span id="btnText">Sign In to Admin Portal</span>
+          <svg id="btnSpinner" class="spinner hidden" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="40" stroke-dashoffset="10"/>
+          </svg>
+        </button>
+      </form>
+
+      <p class="auth-switch" style="margin-top:20px;">
+        Student?
+        <a href="login.html" class="auth-link">Student Login</a>
+      </p>
+    </div>
+  </main>
+
+<script src="auth.js"></script>
+<script>
+  document.getElementById("adminLoginForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const username = document.getElementById("adminUsername").value.trim();
+    const password = document.getElementById("adminPassword").value;
+    const errEl = document.getElementById("errorMsg");
+    const btnText = document.getElementById("btnText");
+    const spinner = document.getElementById("btnSpinner");
+
+    if (!username || !password) {
+      showError(errEl, "Please enter both username and password.");
+      return;
+    }
+
+    setLoading(true, btnText, spinner);
+    try {
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Admin login failed");
+
+      localStorage.setItem("gradewise_admin_token", data.token);
+      localStorage.setItem("gradewise_admin", JSON.stringify(data.admin));
+      window.location.href = "admin.html";
+    } catch (err) {
+      showError(errEl, err.message);
+      setLoading(false, btnText, spinner);
+    }
+  });
+
+  // Redirect if already logged in as admin
+  if (localStorage.getItem("gradewise_admin_token")) {
+    window.location.href = "admin.html";
+  }
+</script>
+</body>
+</html>

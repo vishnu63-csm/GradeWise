@@ -21,6 +21,8 @@
   "routes": [
     { "src": "/api/(.*)",  "dest": "/api/index.js" },
     { "src": "/health",    "dest": "/api/index.js" },
+    { "src": "/admin",     "dest": "/public/admin.html" },
+    { "src": "/admin-login", "dest": "/public/admin-login.html" },
     { "src": "/(.*\\.html)", "dest": "/public/$1" },
     { "src": "/(.*\\.css)",  "dest": "/public/$1" },
     { "src": "/(.*\\.js)",   "dest": "/public/$1" },
