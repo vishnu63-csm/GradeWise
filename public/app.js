@@ -467,6 +467,131 @@ function openResultDetail(resultId) {
 window.openResultDetail = openResultDetail;
 
 /* ════════════════════════════════════════════════════════════ SGPA TAB ═══ */
+const PREVIEW_COUNT = 3; // subjects visible before "expand"
+
+function gradeClass(g) {
+  const map = { S:"grade-S", A:"grade-A", B:"grade-B", C:"grade-C", D:"grade-D", E:"grade-E", F:"grade-F", Ab:"grade-Ab" };
+  return map[g] || "grade-Ab";
+}
+
+function buildSubjectRows(subjects, expanded) {
+  if (!subjects || subjects.length === 0) {
+    return `<div style="font-size:13px;color:var(--text-muted);padding:10px 0;font-style:italic;">No subject-wise data available for this semester.</div>`;
+  }
+  const visible = expanded ? subjects : subjects.slice(0, PREVIEW_COUNT);
+  return visible.map(sub => {
+    const name  = esc(sub.subject || sub.name || "Subject");
+    const code  = sub.code ? `<span class="sem-subject-code">${esc(sub.code)}</span>` : "";
+    const grade = sub.grade || "—";
+    const isFail = (grade === "F" || grade === "Ab");
+    const credits = sub.credits || 0;
+    return `
+      <div class="sem-subject-row${isFail ? " failed-row" : ""}">
+        <div style="flex:1;min-width:0;">
+          <div class="sem-subject-name" title="${name}">${name}</div>
+          ${code}
+        </div>
+        <div class="sem-subject-right">
+          <span class="sem-credit-pill">${credits} Cr</span>
+          <span class="grade-badge ${gradeClass(grade)}">${esc(grade)}</span>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+function buildSemCard(sem, pubResult, idx) {
+  // Determine subjects source: published result takes priority
+  const subjects = pubResult ? (pubResult.subjects || []) : (sem.subjects || []);
+
+  // Calculate totals from real subject data if available
+  const realCredits = subjects.length > 0
+    ? subjects.reduce((acc, s) => acc + (s.credits || 0), 0)
+    : (sem.credits || 0);
+
+  const totalSubjects = subjects.length;
+  const passedCount   = subjects.filter(s => s.passed !== false && s.grade !== "F" && s.grade !== "Ab").length;
+  const failedCount   = totalSubjects - passedCount;
+  const sgpa          = pubResult ? pubResult.sgpa : sem.sgpa;
+  const pct           = pubResult ? pubResult.percentage : ((sgpa - 0.75) * 10);
+  const hasMore       = subjects.length > PREVIEW_COUNT;
+  const isPublished   = !!pubResult;
+  const sourceLabel   = isPublished
+    ? `<span class="badge badge-pass" style="font-size:10px;padding:2px 8px;">Official</span>`
+    : `<span class="badge badge-info" style="font-size:10px;padding:2px 8px;">Manual</span>`;
+
+  return `
+    <div class="sem-card" id="semcard-${idx}">
+      <div class="sem-card-header">
+        <div>
+          <div style="font-family:var(--font-head);font-weight:700;font-size:1.05rem;">${esc(sem.semester)} Semester</div>
+          ${isPublished ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${esc(pubResult.regulation||"R23")} • ${esc(pubResult.examType||"Regular")} • ${esc(pubResult.examSession||"")}</div>` : ""}
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          ${sourceLabel}
+          <span class="badge ${pubResult ? (pubResult.passed ? "badge-pass" : "badge-fail") : "badge-info"}"
+                style="font-size:10px;padding:2px 8px;">
+            ${pubResult ? (pubResult.passed ? "PASS" : "FAIL") : `${realCredits} Cr`}
+          </span>
+        </div>
+      </div>
+
+      <div class="sem-card-meta">
+        <div class="sem-card-meta-item">
+          <div class="lbl">SGPA</div>
+          <div class="val">${fmt2(sgpa)}</div>
+        </div>
+        <div class="sem-card-meta-item">
+          <div class="lbl">Percentage</div>
+          <div class="val">${fmtPct(pct)}</div>
+        </div>
+        <div class="sem-card-meta-item">
+          <div class="lbl">Total Credits</div>
+          <div class="val">${realCredits}</div>
+        </div>
+      </div>
+
+      ${totalSubjects > 0 ? `<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:8px;">Subject Performance</div>` : ""}
+      <div class="sem-subjects-list" id="subj-list-${idx}">
+        ${buildSubjectRows(subjects, false)}
+      </div>
+
+      <div class="sem-card-footer">
+        <div style="display:flex;gap:14px;flex-wrap:wrap;">
+          ${totalSubjects > 0 ? `
+            <span>Subjects: <strong>${totalSubjects}</strong></span>
+            <span style="color:var(--accent-green-txt);">Passed: <strong>${passedCount}</strong></span>
+            ${failedCount > 0 ? `<span style="color:var(--accent-rose-txt);">Failed: <strong>${failedCount}</strong></span>` : ""}
+          ` : "<span style='color:var(--text-muted);font-style:italic;'>No subject data</span>"}
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;">
+          ${hasMore ? `<button class="sem-expand-btn" id="expbtn-${idx}" data-expanded="0" data-semid="${esc(sem.semester)}" onclick="toggleSemExpand(${idx}, ${subjects.length})">Show all ${subjects.length} subjects ↓</button>` : ""}
+          ${pubResult ? `<button class="sem-expand-btn" onclick="openResultDetail('${pubResult._id}')">Full detail →</button>` : ""}
+        </div>
+      </div>
+    </div>`;
+}
+
+function toggleSemExpand(idx, total) {
+  const list = document.getElementById(`subj-list-${idx}`);
+  const btn  = document.getElementById(`expbtn-${idx}`);
+  if (!list || !btn) return;
+  const isExpanded = btn.dataset.expanded === "1";
+  const semId = btn.dataset.semid;
+  if (!semId) return;
+
+  const sd = studentData;
+  if (!sd) return;
+  const sems = semSort(sd.semesters || []);
+  const sem = sems.find(s => s.semester === semId) || { semester: semId, subjects: [] };
+  const pubResult = publishedResults.find(r => r.semester === semId) || null;
+  const subjects = pubResult ? (pubResult.subjects || []) : (sem.subjects || []);
+
+  list.innerHTML = buildSubjectRows(subjects, !isExpanded);
+  btn.dataset.expanded = isExpanded ? "0" : "1";
+  btn.textContent = isExpanded ? `Show all ${total} subjects ↓` : "Show less ↑";
+}
+window.toggleSemExpand = toggleSemExpand;
+
 function renderSgpa() {
   const sd = studentData;
   if (!sd) return;
@@ -474,23 +599,33 @@ function renderSgpa() {
   const grid = document.getElementById("semesterGrid");
   if (!grid) return;
 
-  if (sems.length === 0) {
-    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;"><p style="color:var(--text-sub);">No manual semester grades added yet.</p></div>`;
+  if (sems.length === 0 && publishedResults.length === 0) {
+    grid.innerHTML = `
+      <div style="text-align:center;padding:48px 24px;">
+        <div style="font-size:2.5rem;margin-bottom:12px;">📚</div>
+        <h3 style="font-family:var(--font-head);margin-bottom:6px;">No Semester Data Yet</h3>
+        <p style="color:var(--text-sub);max-width:400px;margin:0 auto 20px;">
+          Add your semester grades manually using the button above, or wait for your institution to publish results.
+        </p>
+        <button class="btn btn-primary" id="addSemBtnEmpty">+ Add First Semester</button>
+      </div>`;
     return;
   }
 
-  grid.innerHTML = sems.map(s => `
-    <div class="metric-card">
-      <div class="metric-header">
-        <span class="metric-label">${s.semester} Semester</span>
-        <span class="badge badge-info">${s.credits} Credits</span>
-      </div>
-      <div class="metric-value-row">
-        <span class="metric-value">${fmt2(s.sgpa)}</span>
-        <span style="font-size:13px;color:var(--text-sub);">${fmtPct((s.sgpa - 0.75)*10)}</span>
-      </div>
-    </div>
-  `).join("");
+  // Merge manual semesters with published results
+  const allSems = new Set([
+    ...sems.map(s => s.semester),
+    ...publishedResults.map(r => r.semester)
+  ]);
+  const sortedSems = [...allSems].sort((a,b) => semOrd(a) - semOrd(b));
+
+  const cards = sortedSems.map((semId, idx) => {
+    const manualSem = sems.find(s => s.semester === semId) || { semester: semId, sgpa: 0, credits: 0, subjects: [] };
+    const pubResult = publishedResults.find(r => r.semester === semId) || null;
+    return buildSemCard(manualSem, pubResult, idx);
+  });
+
+  grid.innerHTML = `<div class="sem-cards-grid">${cards.join("")}</div>`;
 }
 
 /* ════════════════════════════════════════════════════════════ CGPA TAB ═══ */

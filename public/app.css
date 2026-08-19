@@ -633,3 +633,64 @@ body {
   .quick-actions-grid { grid-template-columns: 1fr; }
 }
 
+
+/* -- Semester Cards (SGPA tab) --------------------------------------------- */
+.sem-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 20px;
+}
+.sem-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 20px 22px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.sem-card:hover { box-shadow: var(--shadow-md); border-color: var(--brand-accent); }
+.sem-card-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border-subtle);
+}
+.sem-card-meta {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+  padding: 12px 14px; background: var(--bg-muted); border-radius: var(--radius-md);
+  margin-bottom: 14px;
+}
+.sem-card-meta-item .lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+.sem-card-meta-item .val { font-family: var(--font-head); font-size: 1.15rem; font-weight: 800; color: var(--text-main); margin-top: 2px; }
+.sem-subjects-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.sem-subject-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 10px; border-radius: var(--radius-sm);
+  background: var(--bg-page); border: 1px solid var(--border-subtle); transition: background 0.15s;
+}
+.sem-subject-row:hover { background: var(--bg-muted); }
+.sem-subject-row.failed-row { border-color: rgba(220, 38, 38, 0.4); background: var(--accent-rose-bg); }
+.sem-subject-name { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sem-subject-code { font-size: 10.5px; font-family: var(--font-mono); color: var(--text-muted); flex-shrink: 0; }
+.sem-subject-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.sem-credit-pill { font-size: 10px; font-weight: 700; color: var(--text-muted); background: var(--bg-muted); border: 1px solid var(--border-color); padding: 2px 7px; border-radius: 10px; }
+.grade-badge { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; font-weight: 800; font-size: 12px; font-family: var(--font-head); flex-shrink: 0; }
+.grade-S  { background: #DCFCE7; color: #15803D; }
+.grade-A  { background: #DBEAFE; color: #1D4ED8; }
+.grade-B  { background: #EFF6FF; color: #2563EB; }
+.grade-C  { background: #FEF9C3; color: #CA8A04; }
+.grade-D  { background: #FEF3C7; color: #D97706; }
+.grade-E  { background: #FED7AA; color: #C2410C; }
+.grade-F  { background: #FEE2E2; color: #DC2626; }
+.grade-Ab { background: #F3F4F6; color: #6B7280; font-size: 9px; }
+[data-theme="dark"] .grade-S  { background: rgba(34,197,94,0.15);  color: #86EFAC; }
+[data-theme="dark"] .grade-A  { background: rgba(59,130,246,0.15); color: #93C5FD; }
+[data-theme="dark"] .grade-B  { background: rgba(96,165,250,0.12); color: #60A5FA; }
+[data-theme="dark"] .grade-C  { background: rgba(234,179,8,0.15);  color: #FDE047; }
+[data-theme="dark"] .grade-D  { background: rgba(251,191,36,0.12); color: #FCD34D; }
+[data-theme="dark"] .grade-E  { background: rgba(249,115,22,0.12); color: #FB923C; }
+[data-theme="dark"] .grade-F  { background: rgba(239,68,68,0.15);  color: #FCA5A5; }
+[data-theme="dark"] .grade-Ab { background: rgba(107,114,128,0.15); color: #9CA3AF; font-size: 9px; }
+.sem-card-footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-subtle); font-size: 12px; color: var(--text-sub); }
+.sem-expand-btn { background: none; border: none; color: var(--brand-primary); font-weight: 600; font-size: 12.5px; cursor: pointer; padding: 0; transition: color 0.15s; }
+.sem-expand-btn:hover { color: var(--brand-hover); }
+@media (max-width: 860px) { .sem-cards-grid { grid-template-columns: 1fr; } }
+@media (max-width: 480px) { .sem-card-meta { grid-template-columns: repeat(2, 1fr); } }
