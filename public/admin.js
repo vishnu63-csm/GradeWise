@@ -87,15 +87,34 @@ async function loadOverview() {
   }
 }
 
-/* ═══════════════════════════════════════════════════════════ UPLOADS LIST ═ */
+let _uploadsFilterStatus = "";
+
+function setUploadsFilter(status) {
+  _uploadsFilterStatus = status;
+  loadUploadsList();
+}
+window.setUploadsFilter = setUploadsFilter;
+
 async function loadUploadsList() {
   const container = document.getElementById("uploadsListTable");
   container.innerHTML = "Loading uploads...";
   try {
-    const data = await adminFetch("/api/admin/uploads");
+    const q = _uploadsFilterStatus ? `?status=${_uploadsFilterStatus}` : "";
+    const data = await adminFetch(`/api/admin/uploads${q}`);
     const uploads = data.uploads || [];
+
+    const filters = ["", "NEEDS_REVIEW", "DRAFT", "PUBLISHED"];
+    const ids = ["upFlAll", "upFlNeedsReview", "upFlDraft", "upFlPublished"];
+    filters.forEach((f, idx) => {
+      const btn = document.getElementById(ids[idx]);
+      if (btn) {
+        btn.classList.toggle("active", _uploadsFilterStatus === f);
+        btn.style.background = _uploadsFilterStatus === f ? "var(--bg-card)" : "none";
+      }
+    });
+
     if (uploads.length === 0) {
-      container.innerHTML = `<div class="empty-state"><div class="empty-icon">📄</div><p>No result files uploaded yet.</p></div>`;
+      container.innerHTML = `<div class="empty-state"><div class="empty-icon">📄</div><p>No result files match the selected filter status.</p></div>`;
       return;
     }
 

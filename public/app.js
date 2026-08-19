@@ -423,7 +423,12 @@ window.updateHomeChartFilter = updateHomeChartFilter;
 
 function recomputeTargetPlanner() {
   if (!studentData) return;
-  const cgpa = studentData.cgpa || 0;
+  
+  const sems = getApplicableSemesters(studentData);
+  const completedCredits = sems.reduce((acc, s) => acc + (s.credits || 0), 0);
+  const totalCgpaPoints = sems.reduce((acc, s) => acc + (s.credits || 0) * (s.sgpa || 0), 0);
+  
+  const cgpa = studentData.cgpa || (completedCredits > 0 ? totalCgpaPoints / completedCredits : 0);
   document.getElementById("planCurrentCgpa").textContent = cgpa > 0 ? cgpa.toFixed(2) : "—";
   
   const targetEl = document.getElementById("planTargetInput");
@@ -435,9 +440,10 @@ function recomputeTargetPlanner() {
   }
   document.getElementById("planProgress").textContent = `${progress.toFixed(1)}%`;
   
-  const sems = getApplicableSemesters(studentData);
-  const completedCredits = sems.reduce((acc, s) => acc + (s.credits || 0), 0);
-  const totalCgpaPoints = sems.reduce((acc, s) => acc + (s.credits || 0) * (s.sgpa || 0), 0);
+  if (cgpa >= target && cgpa > 0) {
+    document.getElementById("planReqSgpa").textContent = "✓ Target already achieved!";
+    return;
+  }
   
   const targetTotalCredits = 160;
   const remainingCredits = targetTotalCredits - completedCredits;
@@ -450,9 +456,9 @@ function recomputeTargetPlanner() {
   const requiredSgpa = (target * targetTotalCredits - totalCgpaPoints) / remainingCredits;
   
   if (requiredSgpa <= 0) {
-    document.getElementById("planReqSgpa").textContent = "✓ Target achieved!";
+    document.getElementById("planReqSgpa").textContent = "✓ Target already achieved!";
   } else if (requiredSgpa > 10) {
-    document.getElementById("planReqSgpa").textContent = "Requires > 10.00 SGPA";
+    document.getElementById("planReqSgpa").textContent = "Mathematically impossible (> 10.00 SGPA)";
   } else {
     document.getElementById("planReqSgpa").textContent = `${requiredSgpa.toFixed(2)} SGPA`;
   }

@@ -114,7 +114,7 @@
           <div class="metric-header"><span class="metric-label">Total Students</span></div>
           <div class="metric-value" id="kpiTotalStudents">—</div>
         </div>
-        <div class="metric-card" onclick="switchTab('uploads')" style="cursor:pointer;">
+        <div class="metric-card" onclick="setUploadsFilter('PUBLISHED'); switchTab('uploads');" style="cursor:pointer;">
           <div class="metric-header"><span class="metric-label">Published Uploads</span></div>
           <div class="metric-value" id="kpiPublishedUploads">—</div>
         </div>
@@ -126,11 +126,11 @@
           <div class="metric-header"><span class="metric-label">Active Backlogs</span></div>
           <div class="metric-value" id="kpiTotalBacklogs">—</div>
         </div>
-        <div class="metric-card" onclick="switchTab('uploads')" style="cursor:pointer;border-color:var(--accent-gold-txt);">
+        <div class="metric-card" onclick="setUploadsFilter('NEEDS_REVIEW'); switchTab('uploads');" style="cursor:pointer;border-color:var(--accent-gold-txt);">
           <div class="metric-header"><span class="metric-label" style="color:var(--accent-gold-txt);">Needs Review</span></div>
           <div class="metric-value" id="kpiNeedsReview" style="color:var(--accent-gold-txt);">—</div>
         </div>
-        <div class="metric-card" onclick="switchTab('uploads')" style="cursor:pointer;border-color:var(--accent-rose-txt);">
+        <div class="metric-card" onclick="setUploadsFilter('NEEDS_REVIEW'); switchTab('uploads');" style="cursor:pointer;border-color:var(--accent-rose-txt);">
           <div class="metric-header"><span class="metric-label" style="color:var(--accent-rose-txt);">Parsing Errors</span></div>
           <div class="metric-value" id="kpiParsingErrors" style="color:var(--accent-rose-txt);">—</div>
         </div>
@@ -150,6 +150,14 @@
           <p style="color:var(--text-sub);">Review, publish, unpublish, and manage uploaded university result PDFs.</p>
         </div>
         <button class="btn btn-primary" onclick="switchTab('upload-wizard')">+ New Result Upload</button>
+      </div>
+
+      <!-- Status Filters Row -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;" id="uploadStatusFilters">
+        <button class="btn btn-ghost btn-sm active" onclick="setUploadsFilter('')" id="upFlAll" style="font-size:12px;background:var(--bg-card);">All</button>
+        <button class="btn btn-ghost btn-sm" onclick="setUploadsFilter('NEEDS_REVIEW')" id="upFlNeedsReview" style="font-size:12px;">Needs Review</button>
+        <button class="btn btn-ghost btn-sm" onclick="setUploadsFilter('DRAFT')" id="upFlDraft" style="font-size:12px;">Draft</button>
+        <button class="btn btn-ghost btn-sm" onclick="setUploadsFilter('PUBLISHED')" id="upFlPublished" style="font-size:12px;">Published</button>
       </div>
 
       <div class="card-box">
