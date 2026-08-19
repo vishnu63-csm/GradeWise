@@ -685,6 +685,71 @@ router.get("/students", async (req, res) => {
   }
 });
 
+// ── GET /api/admin/leaderboards ───────────────────────────────────────────────
+router.get("/leaderboards", async (req, res) => {
+  try {
+    const { semester, department, academicYear, admissionType, limit = 50 } = req.query;
+
+    const match = { isPublished: true };
+    if (semester)      match.semester      = semester;
+    if (department)    match.department    = department;
+    if (academicYear)  match.academicYear  = academicYear;
+    if (admissionType) match.admissionType = admissionType;
+
+    const leaderboard = await StudentResult.find(match)
+      .sort({ sgpa: -1, percentage: -1 })
+      .limit(Number(limit))
+      .select("rollNumber studentName sgpa percentage department admissionType semester academicYear examSession")
+      .lean();
+
+    const improvement = await StudentResult.aggregate([
+      { $match: { isPublished: true } },
+      { $sort: { rollNumber: 1, semester: 1 } },
+      { $group: {
+        _id: "$rollNumber",
+        name: { $first: "$studentName" },
+        dept: { $first: "$department" },
+        admissionType: { $first: "$admissionType" },
+        semesters: { $push: { semester: "$semester", sgpa: "$sgpa" } }
+      }},
+      { $match: { "semesters.1": { $exists: true } } },
+      { $project: {
+        rollNumber: "$_id",
+        name: 1, dept: 1, admissionType: 1,
+        prevSem: { $arrayElemAt: ["$semesters", -2] },
+        latestSem: { $arrayElemAt: ["$semesters", -1] }
+      }},
+      { $project: {
+        rollNumber: 1, name: 1, dept: 1, admissionType: 1,
+        prevSem: "$prevSem.semester", prevSgpa: "$prevSem.sgpa",
+        latestSem: "$latestSem.semester", latestSgpa: "$latestSem.sgpa",
+        improvement: { $subtract: ["$latestSem.sgpa", "$prevSem.sgpa"] }
+      }},
+      { $sort: { improvement: -1 } },
+      { $limit: Number(limit) }
+    ]);
+
+    res.json({ leaderboard, improvement });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/admin/student/:rollNumber ────────────────────────────────────────
+router.get("/student/:rollNumber", async (req, res) => {
+  try {
+    const { rollNumber } = req.params;
+    const Student = require("../models/Student");
+    const student = await Student.findOne({ rollNumber: rollNumber.toUpperCase() }).lean();
+    const results = await StudentResult.find({ rollNumber: rollNumber.toUpperCase() })
+      .sort({ semester: 1 })
+      .lean();
+    res.json({ student, results });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Legacy result-history for backward compat ─────────────────────────────────
 router.get("/result-history", async (req, res) => {
   try {

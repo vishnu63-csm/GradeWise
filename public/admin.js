@@ -422,7 +422,7 @@ async function loadStudents() {
         <tbody>
           ${students.map(s => `
             <tr>
-              <td><code>${esc(s.rollNumber)}</code></td>
+              <td><button class="btn btn-ghost btn-sm" onclick="openStudentProfile('${s.rollNumber}')" style="padding:2px 6px;"><code>${esc(s.rollNumber)}</code></button></td>
               <td>${esc(s.name)}</td>
               <td>${esc(s.dept || "—")}</td>
               <td>${esc(s.category || "Regular Entry")}</td>
@@ -437,8 +437,199 @@ async function loadStudents() {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════ LEADERBOARDS ═ */
+async function loadLeaderboards() {
+  const lbTable = document.getElementById("leaderboardTable");
+  const impTable = document.getElementById("improvementTable");
+  if (!lbTable || !impTable) return;
+  
+  lbTable.innerHTML = "Loading standings...";
+  impTable.innerHTML = "Loading improvements...";
+
+  try {
+    const sem = document.getElementById("ldSem")?.value || "3-2";
+    const dept = document.getElementById("ldDept")?.value || "";
+    const adm = document.getElementById("ldAdm")?.value || "";
+
+    const query = new URLSearchParams();
+    if (sem) query.set("semester", sem);
+    if (dept) query.set("department", dept);
+    if (adm) query.set("admissionType", adm);
+
+    const data = await adminFetch(`/api/admin/leaderboards?${query.toString()}`);
+    const lb = data.leaderboard || [];
+    const imp = data.improvement || [];
+
+    if (lb.length === 0) {
+      lbTable.innerHTML = `<p class="empty-sub" style="padding:20px 0;">No leaderboard entries match this filter.</p>`;
+    } else {
+      lbTable.innerHTML = `
+        <table class="data-table">
+          <thead><tr><th>Rank</th><th>Roll Number</th><th>Name</th><th>Dept</th><th>SGPA</th><th>%</th></tr></thead>
+          <tbody>
+            ${lb.map((s, idx) => `
+              <tr>
+                <td><strong>#${idx + 1}</strong></td>
+                <td><button class="btn btn-ghost btn-sm" onclick="openStudentProfile('${s.rollNumber}')" style="padding:2px 6px;"><code>${esc(s.rollNumber)}</code></button></td>
+                <td>${esc(s.studentName)}</td>
+                <td>${esc(s.department)}</td>
+                <td><strong>${fmt2(s.sgpa)}</strong></td>
+                <td>${fmtPct(s.percentage)}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>`;
+    }
+
+    if (imp.length === 0) {
+      impTable.innerHTML = `<p class="empty-sub" style="padding:20px 0;">No improvement records found.</p>`;
+    } else {
+      impTable.innerHTML = `
+        <table class="data-table">
+          <thead><tr><th>Student Name</th><th>Roll Number</th><th>Prev SGPA</th><th>Latest SGPA</th><th>Change</th></tr></thead>
+          <tbody>
+            ${imp.map(i => `
+              <tr>
+                <td><strong>${esc(i.name)}</strong></td>
+                <td><button class="btn btn-ghost btn-sm" onclick="openStudentProfile('${i.rollNumber}')" style="padding:2px 6px;"><code>${esc(i.rollNumber)}</code></button></td>
+                <td>${fmt2(i.prevSgpa)}</td>
+                <td>${fmt2(i.latestSgpa)}</td>
+                <td><span class="badge ${i.improvement >= 0 ? "badge-pass" : "badge-fail"}">${i.improvement >= 0 ? "+" : ""}${fmt2(i.improvement)}</span></td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>`;
+    }
+
+  } catch(e) {
+    lbTable.innerHTML = `<div class="alert alert-error">⚠ ${esc(e.message)}</div>`;
+    impTable.innerHTML = `<div class="alert alert-error">⚠ ${esc(e.message)}</div>`;
+  }
+}
+window.loadLeaderboards = loadLeaderboards;
+
+function clearLeaderboardFilters() {
+  const sem = document.getElementById("ldSem");
+  const dept = document.getElementById("ldDept");
+  const adm = document.getElementById("ldAdm");
+  if (sem) sem.value = "3-2";
+  if (dept) dept.value = "";
+  if (adm) adm.value = "";
+  loadLeaderboards();
+}
+window.clearLeaderboardFilters = clearLeaderboardFilters;
+
+
+/* ══════════════════════════════════════════════════════════ STUDENT DETAIL ═ */
+let profileChartInst = null;
+
+async function openStudentProfile(rollNumber) {
+  const title = document.getElementById("studentProfileTitle");
+  const body = document.getElementById("studentProfileBody");
+  title.textContent = `Loading Academic Profile for ${rollNumber}...`;
+  body.innerHTML = "Fetching results details...";
+  openModal("studentProfileModal");
+
+  try {
+    const data = await adminFetch(`/api/admin/student/${rollNumber}`);
+    const student = data.student;
+    const results = data.results || [];
+
+    title.textContent = `${student ? esc(student.name) : "Student"} (${rollNumber.toUpperCase()})`;
+
+    // Check backlogs
+    const backlogs = results.reduce((acc, r) => acc + (r.backlogCount || 0), 0);
+
+    body.innerHTML = `
+      <div class="card-box" style="margin-bottom:20px;background:var(--bg-muted);">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:12px;">
+          <div><div style="font-size:10px;color:var(--text-muted);font-weight:700;">DEPARTMENT</div><div style="font-weight:700;font-size:14px;color:var(--text-main);">${esc(student?.dept || "CSM")}</div></div>
+          <div><div style="font-size:10px;color:var(--text-muted);font-weight:700;">CATEGORY</div><div style="font-weight:700;font-size:14px;color:var(--text-main);">${esc(student?.category || "Regular Entry")}</div></div>
+          <div><div style="font-size:10px;color:var(--text-muted);font-weight:700;">TOTAL BACKLOGS</div><div style="font-weight:700;font-size:14px;color:${backlogs > 0 ? "var(--accent-rose-txt)" : "var(--text-main)"};">${backlogs}</div></div>
+          <div><div style="font-size:10px;color:var(--text-muted);font-weight:700;">CGPA</div><div style="font-weight:700;font-size:14px;color:var(--brand-primary);">${student?.cgpa != null ? fmt2(student.cgpa) : "—"}</div></div>
+        </div>
+      </div>
+
+      <div class="card-box" style="margin-bottom:20px;">
+        <div class="card-title">Performance Trend</div>
+        <div style="height:180px;position:relative;">
+          <canvas id="profileChart"></canvas>
+        </div>
+      </div>
+
+      <div class="card-title" style="margin-top:16px;">Semester Results History</div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        ${results.length === 0 ? `<p style="color:var(--text-sub);font-style:italic;">No published exam results found for this student.</p>` : 
+          results.map(r => `
+            <div class="card-box" style="border-left:4px solid ${r.passed ? "var(--brand-primary)" : "var(--accent-rose-txt)"}">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <strong>${esc(r.semester)} Semester</strong>
+                <span class="badge ${r.passed ? "badge-pass" : "badge-fail"}">${r.passed ? "PASS" : "FAIL"}</span>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);font-size:12px;margin-bottom:8px;background:var(--bg-muted);padding:8px;border-radius:6px;">
+                <div>SGPA: <strong>${fmt2(r.sgpa)}</strong></div>
+                <div>Pct: <strong>${fmtPct(r.percentage)}</strong></div>
+                <div>Credits: <strong>${r.totalCredits}</strong></div>
+                <div>Backlogs: <strong>${r.backlogCount}</strong></div>
+              </div>
+              <div style="font-size:12px;max-height:120px;overflow-y:auto;">
+                <table style="width:100%;border-collapse:collapse;">
+                  <thead><tr style="text-align:left;color:var(--text-muted);font-size:10px;"><th>Subject</th><th>Credits</th><th>Grade</th></tr></thead>
+                  <tbody>
+                    ${(r.subjects || []).map(s => `
+                      <tr style="border-bottom:1px solid var(--border-subtle);">
+                        <td>${esc(s.name)}</td>
+                        <td>${s.credits}</td>
+                        <td><strong>${esc(s.grade)}</strong></td>
+                      </tr>
+                    `).join("")}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          `).join("")
+        }
+      </div>`;
+
+    // Render Trend chart
+    setTimeout(() => {
+      const ctx = document.getElementById("profileChart")?.getContext("2d");
+      if (!ctx) return;
+      if (profileChartInst) profileChartInst.destroy();
+      
+      const labels = results.map(r => r.semester);
+      const sData = results.map(r => r.sgpa);
+      
+      profileChartInst = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            label: "SGPA",
+            data: sData,
+            borderColor: "#3B82F6",
+            tension: 0.3,
+            fill: false,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { min: 0, max: 10 } }
+        }
+      });
+    }, 100);
+
+  } catch(e) {
+    body.innerHTML = `<div class="alert alert-error">❌ ${esc(e.message)}</div>`;
+  }
+}
+window.openStudentProfile = openStudentProfile;
+
+
 /* ── Navigation & View Router ────────────────────────────────────────────── */
-const ADMIN_VIEWS = ["overview", "uploads", "upload-wizard", "students", "analytics", "rules"];
+const ADMIN_VIEWS = ["overview", "uploads", "upload-wizard", "students", "analytics", "leaderboards", "rules"];
 
 function switchTab(name, updateHash = true) {
   const target = (name === "dashboard" || name === "overview") ? "overview" : name;
@@ -471,6 +662,7 @@ function switchTab(name, updateHash = true) {
   if (target === "rules")     loadRules();
   if (target === "analytics") loadAnalytics();
   if (target === "students")  loadStudents();
+  if (target === "leaderboards") loadLeaderboards();
 }
 window.switchTab = switchTab;
 
