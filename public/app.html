@@ -174,6 +174,49 @@
         </div>
       </div>
 
+      <!-- Academic Health, Target Planner & Insights Row -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:24px;margin-bottom:24px;" class="animate-fade-in animate-stagger-2">
+        
+        <!-- Academic Health Card -->
+        <div class="card-box" id="academicHealthCard">
+          <div class="card-title">Academic Health</div>
+          <div style="display:flex;flex-direction:column;gap:12px;margin-top:8px;" id="healthChecklist">
+            <div style="font-size:13px;color:var(--text-sub);">Loading health checklist...</div>
+          </div>
+        </div>
+
+        <!-- CGPA Target Planner -->
+        <div class="card-box" id="targetPlannerCard">
+          <div class="card-title">CGPA Target Planner</div>
+          <div style="display:flex;flex-direction:column;gap:12px;margin-top:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:13px;color:var(--text-sub);">Current CGPA</span>
+              <strong id="planCurrentCgpa" style="font-size:15px;color:var(--text-main);">—</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:13px;color:var(--text-sub);">Target CGPA</span>
+              <input type="number" id="planTargetInput" min="1" max="10" step="0.05" value="8.50" style="width:70px;padding:3px 6px;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-main);border-radius:6px;font-size:13px;text-align:right;" oninput="recomputeTargetPlanner()"/>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:13px;color:var(--text-sub);">Progress</span>
+              <strong id="planProgress" style="font-size:15px;color:var(--brand-primary);">—</strong>
+            </div>
+            <div style="padding:10px;background:var(--bg-muted);border-radius:8px;font-size:12.5px;color:var(--text-sub);line-height:1.5;">
+              Required avg. future SGPA: <strong id="planReqSgpa" style="color:var(--text-main);">—</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Academic Insights -->
+        <div class="card-box" id="academicInsightsCard">
+          <div class="card-title">Academic Insights</div>
+          <ul style="margin:8px 0 0 0;padding-left:16px;font-size:13px;color:var(--text-sub);display:flex;flex-direction:column;gap:8px;" id="insightsList">
+            <li style="list-style:none;margin-left:-16px;">Loading insights...</li>
+          </ul>
+        </div>
+
+      </div>
+
       <!-- Main Dashboard Grid (2 columns) -->
       <div class="dashboard-grid animate-fade-in animate-stagger-2">
         
@@ -228,9 +271,16 @@
 
           <!-- SGPA Trend Chart -->
           <div class="card-box" id="chartCardBox">
-            <div class="card-title">
-              <span>Performance Progression</span>
-              <span style="font-size:12px;color:var(--text-sub);">SGPA vs CGPA</span>
+            <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
+              <div>
+                <span>Performance Progression</span>
+                <span style="font-size:12px;color:var(--text-sub);display:block;margin-top:2px;">SGPA vs CGPA Trend</span>
+              </div>
+              <div style="display:flex;gap:4px;background:var(--bg-muted);padding:2px;border-radius:6px;">
+                <button class="btn btn-ghost btn-sm" id="chartToggleSgpa" onclick="updateHomeChartFilter('sgpa')" style="padding:4px 8px;font-size:11px;">SGPA</button>
+                <button class="btn btn-ghost btn-sm" id="chartToggleCgpa" onclick="updateHomeChartFilter('cgpa')" style="padding:4px 8px;font-size:11px;">CGPA</button>
+                <button class="btn btn-ghost btn-sm active" id="chartToggleBoth" onclick="updateHomeChartFilter('both')" style="padding:4px 8px;font-size:11px;background:var(--bg-card);">Both</button>
+              </div>
             </div>
             <div style="height:260px;position:relative;">
               <canvas id="homeChart"></canvas>

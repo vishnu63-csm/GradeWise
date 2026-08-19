@@ -629,6 +629,9 @@ router.get("/dashboard", async (req, res) => {
     const publishedUploads = await ResultUpload.countDocuments({ status: "PUBLISHED" });
     const publishedResults = await StudentResult.countDocuments({ isPublished: true });
 
+    const needsReviewResults = await StudentResult.countDocuments({ validationStatus: "NEEDS_REVIEW" });
+    const parsingErrorsCount = await StudentResult.countDocuments({ validationStatus: "PARSING_ERROR" });
+
     const passStats = await StudentResult.aggregate([
       { $match: { isPublished: true } },
       { $group: {
@@ -653,6 +656,8 @@ router.get("/dashboard", async (req, res) => {
       publishedResults,
       passPercentage,
       studentsWithBacklogs: s.backlogs,
+      needsReviewResults,
+      parsingErrorsCount,
       recentUploads,
     });
   } catch (err) {

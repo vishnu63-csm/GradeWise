@@ -80,7 +80,7 @@ const StudentResultSchema = new mongoose.Schema(
     // Validation state (used before publishing)
     validationStatus: {
       type: String,
-      enum: ["VALID", "NEEDS_REVIEW", "INVALID", "READY_TO_PUBLISH"],
+      enum: ["VALID", "NEEDS_REVIEW", "INVALID", "READY_TO_PUBLISH", "VERIFIED", "DUPLICATE", "PARSING_ERROR"],
       default: "VALID",
       index: true,
     },

@@ -218,6 +218,12 @@ async function loadHome() {
     // Dynamic Notifications
     populateDynamicNotifications(latestSem, latestPubResult, backlogs);
 
+    // Health and Insights
+    updateAcademicHealthAndInsights(sems, cgpa, pct, backlogs);
+
+    // Target Planner
+    recomputeTargetPlanner();
+
     if (sems.length > 0) {
       renderHomeChart(sems);
     }
@@ -319,9 +325,11 @@ function renderJourneyNodes(manualSems, pubResults) {
     else if (isCompleted) cls = "completed";
 
     if (pubSemsMap.has(sem)) {
-      sgpaDisplay = `${fmt2(pubSemsMap.get(sem).sgpa)} SP`;
+      const pRes = pubSemsMap.get(sem);
+      sgpaDisplay = `${fmt2(pRes.sgpa)} SGPA • ${pRes.totalCredits || 0} Cr`;
     } else if (userSemsMap.has(sem)) {
-      sgpaDisplay = `${fmt2(userSemsMap.get(sem).sgpa)} SG`;
+      const mRes = userSemsMap.get(sem);
+      sgpaDisplay = `${fmt2(mRes.sgpa)} SGPA • ${mRes.credits || 0} Cr`;
     }
 
     return `
@@ -385,6 +393,140 @@ function populateDynamicNotifications(latestSem, latestPubResult, backlogCount) 
     </div>`).join("");
 }
 
+let _currentChartFilter = "both";
+function updateHomeChartFilter(filter) {
+  _currentChartFilter = filter;
+  
+  const sgpaBtn = document.getElementById("chartToggleSgpa");
+  const cgpaBtn = document.getElementById("chartToggleCgpa");
+  const bothBtn = document.getElementById("chartToggleBoth");
+
+  if (sgpaBtn) {
+    sgpaBtn.classList.toggle("active", filter === "sgpa");
+    sgpaBtn.style.background = filter === "sgpa" ? "var(--bg-card)" : "none";
+  }
+  if (cgpaBtn) {
+    cgpaBtn.classList.toggle("active", filter === "cgpa");
+    cgpaBtn.style.background = filter === "cgpa" ? "var(--bg-card)" : "none";
+  }
+  if (bothBtn) {
+    bothBtn.classList.toggle("active", filter === "both");
+    bothBtn.style.background = filter === "both" ? "var(--bg-card)" : "none";
+  }
+
+  const sems = getApplicableSemesters(studentData);
+  if (sems.length > 0) {
+    renderHomeChart(sems);
+  }
+}
+window.updateHomeChartFilter = updateHomeChartFilter;
+
+function recomputeTargetPlanner() {
+  if (!studentData) return;
+  const cgpa = studentData.cgpa || 0;
+  document.getElementById("planCurrentCgpa").textContent = cgpa > 0 ? cgpa.toFixed(2) : "—";
+  
+  const targetEl = document.getElementById("planTargetInput");
+  const target = parseFloat(targetEl?.value) || 8.50;
+  
+  let progress = 0;
+  if (cgpa > 0) {
+    progress = Math.min(100, Math.max(0, (cgpa / target) * 100));
+  }
+  document.getElementById("planProgress").textContent = `${progress.toFixed(1)}%`;
+  
+  const sems = getApplicableSemesters(studentData);
+  const completedCredits = sems.reduce((acc, s) => acc + (s.credits || 0), 0);
+  const totalCgpaPoints = sems.reduce((acc, s) => acc + (s.credits || 0) * (s.sgpa || 0), 0);
+  
+  const targetTotalCredits = 160;
+  const remainingCredits = targetTotalCredits - completedCredits;
+  
+  if (remainingCredits <= 0) {
+    document.getElementById("planReqSgpa").textContent = "All credits completed!";
+    return;
+  }
+  
+  const requiredSgpa = (target * targetTotalCredits - totalCgpaPoints) / remainingCredits;
+  
+  if (requiredSgpa <= 0) {
+    document.getElementById("planReqSgpa").textContent = "✓ Target achieved!";
+  } else if (requiredSgpa > 10) {
+    document.getElementById("planReqSgpa").textContent = "Requires > 10.00 SGPA";
+  } else {
+    document.getElementById("planReqSgpa").textContent = `${requiredSgpa.toFixed(2)} SGPA`;
+  }
+}
+window.recomputeTargetPlanner = recomputeTargetPlanner;
+
+function updateAcademicHealthAndInsights(sems, cgpa, pct, backlogs) {
+  // 1. Health Checklist
+  const healthContainer = document.getElementById("healthChecklist");
+  if (healthContainer) {
+    const completedCredits = sems.reduce((acc, s) => acc + (s.credits || 0), 0);
+    const creditPct = Math.min(100, (completedCredits / 160) * 100);
+    
+    let cgpaStatus = "Needs Improvement ✕";
+    let cgpaColor = "var(--brand-danger)";
+    if (cgpa >= 8.0) {
+      cgpaStatus = "Excellent ✓";
+      cgpaColor = "var(--brand-success)";
+    } else if (cgpa >= 6.5) {
+      cgpaStatus = "Good ✓";
+      cgpaColor = "var(--brand-primary)";
+    }
+
+    healthContainer.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;">
+        <span style="color:var(--text-sub);">CGPA Status</span>
+        <strong style="color:${cgpaColor};">${cgpaStatus}</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;">
+        <span style="color:var(--text-sub);">Backlog Status</span>
+        <strong style="color:${backlogs === 0 ? "var(--brand-success)" : "var(--brand-danger)"};">
+          ${backlogs === 0 ? "All Clear ✓" : `${backlogs} Pending ✕`}
+        </strong>
+      </div>
+      <div style="font-size:13px;margin-top:6px;">
+        <div style="display:flex;justify-content:space-between;color:var(--text-sub);margin-bottom:4px;">
+          <span>Credit Progress</span>
+          <strong>${completedCredits} / 160 Cr (${creditPct.toFixed(1)}%)</strong>
+        </div>
+        <div style="width:100%;height:6px;background:var(--border-color);border-radius:3px;overflow:hidden;">
+          <div style="width:${creditPct}%;height:100%;background:var(--brand-primary);border-radius:3px;"></div>
+        </div>
+      </div>`;
+  }
+
+  // 2. Academic Insights List
+  const insightsContainer = document.getElementById("insightsList");
+  if (insightsContainer) {
+    const insights = [];
+    const completedCredits = sems.reduce((acc, s) => acc + (s.credits || 0), 0);
+    
+    if (cgpa > 0) {
+      insights.push(`Your cumulative CGPA is standing at **${cgpa.toFixed(2)}**.`);
+    }
+    
+    if (sems.length > 0) {
+      const highestSemObj = [...sems].sort((a,b) => b.sgpa - a.sgpa)[0];
+      insights.push(`Your highest performance was in **${highestSemObj.semester}** with **${highestSemObj.sgpa.toFixed(2)}** SGPA.`);
+    }
+
+    insights.push(`You have completed **${completedCredits}** out of 160 total credits.`);
+
+    if (backlogs === 0) {
+      insights.push(`You currently have **no active backlogs**; academic profile is completely clear.`);
+    } else {
+      insights.push(`You have **${backlogs} active backlogs** that require completion.`);
+    }
+
+    insightsContainer.innerHTML = insights.map(i => `
+      <li style="line-height:1.5;">${i.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</li>
+    `).join("");
+  }
+}
+
 function renderHomeChart(sems) {
   const ctx = document.getElementById("homeChart")?.getContext("2d");
   if (!ctx) return;
@@ -392,26 +534,53 @@ function renderHomeChart(sems) {
 
   const labels = sems.map(s => s.semester);
   const sgpaData = sems.map(s => +Number(s.sgpa).toFixed(2));
+  
+  let accumulatedCredits = 0;
+  let accumulatedPoints = 0;
+  const cgpaData = sems.map(s => {
+    accumulatedCredits += (s.credits || 0);
+    accumulatedPoints += (s.credits || 0) * (s.sgpa || 0);
+    return accumulatedCredits > 0 ? +Number(accumulatedPoints / accumulatedCredits).toFixed(2) : 0;
+  });
+
+  const datasets = [];
+  if (_currentChartFilter === "sgpa" || _currentChartFilter === "both") {
+    datasets.push({
+      label: "SGPA",
+      data: sgpaData,
+      borderColor: "#3B82F6",
+      backgroundColor: "rgba(59, 130, 246, 0.05)",
+      tension: 0.35,
+      fill: true,
+      pointRadius: 5,
+      pointBackgroundColor: "#3B82F6",
+    });
+  }
+  if (_currentChartFilter === "cgpa" || _currentChartFilter === "both") {
+    datasets.push({
+      label: "CGPA",
+      data: cgpaData,
+      borderColor: "#EAB308",
+      backgroundColor: "rgba(234, 179, 8, 0.05)",
+      tension: 0.35,
+      fill: true,
+      pointRadius: 5,
+      pointBackgroundColor: "#EAB308",
+    });
+  }
 
   homeChartInst = new Chart(ctx, {
     type: "line",
-    data: {
-      labels,
-      datasets: [{
-        label: "SGPA",
-        data: sgpaData,
-        borderColor: "#3B82F6",
-        backgroundColor: "rgba(59, 130, 246, 0.1)",
-        tension: 0.35,
-        fill: true,
-        pointRadius: 5,
-        pointBackgroundColor: "#3B82F6",
-      }]
-    },
+    data: { labels, datasets },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      plugins: {
+        tooltip: {
+          mode: "index",
+          intersect: false,
+        }
+      },
       scales: {
         y: { min: 0, max: 10, grid: { color: "rgba(156, 163, 175, 0.15)" } },
         x: { grid: { display: false } }

@@ -109,7 +109,7 @@
         <p style="color:var(--text-sub);">Overview of students, uploads, pass percentage, and system metrics.</p>
       </div>
 
-      <div class="kpi-row" style="margin-bottom:28px;">
+      <div class="kpi-row" style="margin-bottom:28px;display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:16px;">
         <div class="metric-card" onclick="switchTab('students')" style="cursor:pointer;">
           <div class="metric-header"><span class="metric-label">Total Students</span></div>
           <div class="metric-value" id="kpiTotalStudents">—</div>
@@ -125,6 +125,14 @@
         <div class="metric-card" onclick="switchTab('analytics')" style="cursor:pointer;">
           <div class="metric-header"><span class="metric-label">Active Backlogs</span></div>
           <div class="metric-value" id="kpiTotalBacklogs">—</div>
+        </div>
+        <div class="metric-card" onclick="switchTab('uploads')" style="cursor:pointer;border-color:var(--accent-gold-txt);">
+          <div class="metric-header"><span class="metric-label" style="color:var(--accent-gold-txt);">Needs Review</span></div>
+          <div class="metric-value" id="kpiNeedsReview" style="color:var(--accent-gold-txt);">—</div>
+        </div>
+        <div class="metric-card" onclick="switchTab('uploads')" style="cursor:pointer;border-color:var(--accent-rose-txt);">
+          <div class="metric-header"><span class="metric-label" style="color:var(--accent-rose-txt);">Parsing Errors</span></div>
+          <div class="metric-value" id="kpiParsingErrors" style="color:var(--accent-rose-txt);">—</div>
         </div>
       </div>
 
@@ -333,6 +341,22 @@
     </div>
     <div id="recordEditorBody" style="max-height:550px;overflow-y:auto;padding-right:4px;">
       Loading student detail...
+    </div>
+  </div>
+</div>
+
+<!-- ── UNSAVED CHANGES MODAL ──────────────────────────────────────────────── -->
+<div class="modal-overlay" id="unsavedChangesModal" style="z-index: 10001;">
+  <div class="modal card-box" style="max-width:400px;width:90%;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border-color);padding-bottom:12px;">
+      <h2 class="card-title" style="margin:0;color:var(--brand-danger);">Unsaved Changes</h2>
+      <button class="icon-btn" onclick="closeModal('unsavedChangesModal')">✕</button>
+    </div>
+    <p style="font-size:13.5px;color:var(--text-sub);margin:0 0 20px 0;line-height:1.5;">You have unsaved changes in the editor. How do you want to proceed?</p>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <button class="btn btn-primary" id="unsavedSaveBtn">Save &amp; Continue</button>
+      <button class="btn btn-secondary" style="color:var(--brand-danger);" id="unsavedDiscardBtn">Discard &amp; Continue</button>
+      <button class="btn btn-ghost" onclick="closeModal('unsavedChangesModal')">Cancel</button>
     </div>
   </div>
 </div>

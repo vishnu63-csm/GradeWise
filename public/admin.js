@@ -53,6 +53,8 @@ async function loadOverview() {
     document.getElementById("kpiPublishedUploads").textContent = data.publishedUploads || 0;
     document.getElementById("kpiPassPercentage").textContent = data.passPercentage != null ? fmtPct(data.passPercentage) : "—";
     document.getElementById("kpiTotalBacklogs").textContent = data.studentsWithBacklogs || 0;
+    document.getElementById("kpiNeedsReview").textContent = data.needsReviewResults || 0;
+    document.getElementById("kpiParsingErrors").textContent = data.parsingErrorsCount || 0;
 
     const uploads = data.recentUploads || [];
     const container = document.getElementById("recentUploadsTable");
@@ -322,6 +324,71 @@ async function openRecordEditor(resultId) {
 }
 window.openRecordEditor = openRecordEditor;
 
+function isRecordEditorDirty() {
+  if (!_editingResultData) return false;
+  const nameInput = document.getElementById("editName")?.value || "";
+  if (nameInput.trim() !== (_editingResultData.studentName || "").trim()) return true;
+  
+  const deptInput = document.getElementById("editDept")?.value || "";
+  if (deptInput.trim() !== (_editingResultData.department || "").trim()) return true;
+
+  const currentSubjects = collectSubjectsFromEditor();
+  const originalSubjects = _editingResultData.subjects || [];
+  if (currentSubjects.length !== originalSubjects.length) return true;
+
+  for (let i = 0; i < currentSubjects.length; i++) {
+    const c = currentSubjects[i];
+    const o = originalSubjects[i];
+    if (!o) return true;
+    if (c.code !== o.code || c.name !== o.name || c.credits !== o.credits || c.grade !== o.grade) {
+      return true;
+    }
+  }
+  return false;
+}
+
+async function saveRecordDraftQuietly() {
+  if (!_editingResultId) return false;
+  const payload = {
+    studentName: document.getElementById("editName")?.value?.trim() || "",
+    subjects: collectSubjectsFromEditor(),
+  };
+  try {
+    const uploadId = _editingResultData?.uploadId || _reviewUploadId;
+    await adminFetch(`/api/admin/upload/${uploadId}/result/${_editingResultId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    return true;
+  } catch(e) {
+    alert("Auto-save failed: " + e.message);
+    return false;
+  }
+}
+
+function navigateRecordEditor(targetId) {
+  if (isRecordEditorDirty()) {
+    openModal("unsavedChangesModal");
+    
+    document.getElementById("unsavedSaveBtn").onclick = async () => {
+      closeModal("unsavedChangesModal");
+      const success = await saveRecordDraftQuietly();
+      if (success) {
+        openRecordEditor(targetId);
+      }
+    };
+    
+    document.getElementById("unsavedDiscardBtn").onclick = () => {
+      closeModal("unsavedChangesModal");
+      openRecordEditor(targetId);
+    };
+  } else {
+    openRecordEditor(targetId);
+  }
+}
+window.navigateRecordEditor = navigateRecordEditor;
+
 function renderRecordEditor(r) {
   const body = document.getElementById("recordEditorBody");
   const issues = (r.reviewReasons || []).concat(r.extractionErrors || []);
@@ -330,11 +397,61 @@ function renderRecordEditor(r) {
   const reviewResultIds = window._reviewResultIds || [];
   const currentIdx = reviewResultIds.indexOf(r._id);
   const prevBtn = currentIdx > 0
-    ? `<button class="btn btn-ghost btn-sm" onclick="openRecordEditor('${reviewResultIds[currentIdx - 1]}')">← Previous Student</button>`
+    ? `<button class="btn btn-ghost btn-sm" onclick="navigateRecordEditor('${reviewResultIds[currentIdx - 1]}')">← Previous Student</button>`
     : "";
   const nextBtn = currentIdx !== -1 && currentIdx < reviewResultIds.length - 1
-    ? `<button class="btn btn-ghost btn-sm" onclick="openRecordEditor('${reviewResultIds[currentIdx + 1]}')">Next Student →</button>`
+    ? `<button class="btn btn-ghost btn-sm" onclick="navigateRecordEditor('${reviewResultIds[currentIdx + 1]}')">Next Student →</button>`
     : "";
+
+  const checks = [];
+  
+  // 1. Roll Number
+  if (r.rollNumber && r.rollNumber.length === 10) {
+    checks.push({ name: "Roll Number Format", pass: true });
+  } else {
+    checks.push({ name: "Roll Number Format", pass: false, desc: "Must be exactly 10 characters." });
+  }
+  
+  // 2. Student Name
+  if (r.studentName && r.studentName.trim().length >= 3 && !/\b(design|drawing|steel|structures|lab|practical|project|engineering)\b/i.test(r.studentName)) {
+    checks.push({ name: "Student Name", pass: true });
+  } else {
+    checks.push({ name: "Student Name", pass: false, desc: "Name missing or invalid." });
+  }
+
+  // 3. Subjects Extracted
+  if (r.subjects && r.subjects.length > 0) {
+    checks.push({ name: "Subjects Extracted", pass: true });
+    
+    const missingCodes = r.subjects.filter(s => !s.code || s.code.trim().length === 0);
+    if (missingCodes.length === 0) {
+      checks.push({ name: "Subject Codes", pass: true });
+    } else {
+      checks.push({ name: "Subject Codes", pass: false, desc: `${missingCodes.length} subject code(s) missing.` });
+    }
+
+    const invalidCredits = r.subjects.filter(s => s.credits == null || s.credits === 0);
+    if (invalidCredits.length === 0) {
+      checks.push({ name: "Credits Assigned", pass: true });
+    } else {
+      checks.push({ name: "Credits Assigned", pass: false, desc: "Some subjects have 0 credits." });
+    }
+
+    const missingGrades = r.subjects.filter(s => !s.grade || s.grade === "UNKNOWN" || s.grade === "—");
+    if (missingGrades.length === 0) {
+      checks.push({ name: "Grades Formatted", pass: true });
+    } else {
+      checks.push({ name: "Grades Formatted", pass: false, desc: "Some subjects have missing/unknown grades." });
+    }
+  } else {
+    checks.push({ name: "Subjects Extracted", pass: false, desc: "No subjects found." });
+  }
+
+  if (r.sgpa != null && r.sgpa >= 0 && r.sgpa <= 10) {
+    checks.push({ name: "SGPA Calculated", pass: true });
+  } else {
+    checks.push({ name: "SGPA Calculated", pass: false, desc: "Calculated SGPA out of range." });
+  }
 
   body.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;">
@@ -369,6 +486,20 @@ function renderRecordEditor(r) {
               <div style="font-size:10px;font-weight:700;color:var(--text-muted);margin-bottom:3px;">SEMESTER</div>
               <div>${esc(r.semester)}</div>
             </div>
+          </div>
+        </div>
+
+        <!-- Validation Summary Checklist -->
+        <div class="card-box" style="margin-bottom:16px;padding:12px;">
+          <div style="font-weight:700;font-size:11px;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Validation Checklist</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;font-size:12.5px;">
+            ${checks.map(c => `
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span style="font-size:13px;color:${c.pass ? "var(--brand-success)" : "var(--brand-danger)"};">${c.pass ? "✓" : "✕"}</span>
+                <span style="color:${c.pass ? "var(--text-main)" : "var(--brand-danger)"};font-weight:${c.pass ? "500" : "700"};">${c.name}</span>
+                ${c.desc ? `<span style="font-size:10px;color:var(--text-muted);margin-left:4px;">(${c.desc})</span>` : ""}
+              </div>
+            `).join("")}
           </div>
         </div>
 
