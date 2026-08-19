@@ -571,7 +571,6 @@ function renderRecordEditor(r) {
       </div>
     </div>`;
 }
-}
 
 function buildSubjectRow(s, idx) {
   const grades = ["S","A","B","C","D","E","F","Ab"];

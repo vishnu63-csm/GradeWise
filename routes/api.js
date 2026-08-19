@@ -106,7 +106,7 @@ router.delete("/student/semester/:semester", async (req, res) => {
     await student.save();
     const studentPlain = student.toObject();
     const derived = computeCgpaFromSemesters(studentPlain.semesters, studentPlain.category);
-    res.json({ ...studentPlain, ...(derived || {}) });
+    res.json({ student: studentPlain, ...studentPlain, ...(derived || {}) });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

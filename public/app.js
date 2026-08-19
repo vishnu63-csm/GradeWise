@@ -778,10 +778,35 @@ function buildSemCard(sem, pubResult, idx) {
         <div style="display:flex;gap:12px;align-items:center;">
           ${hasMore ? `<button class="sem-expand-btn" id="expbtn-${idx}" data-expanded="0" data-semid="${esc(sem.semester)}" onclick="toggleSemExpand(${idx}, ${subjects.length})">Show all ${subjects.length} subjects ↓</button>` : ""}
           ${pubResult ? `<button class="sem-expand-btn" onclick="openResultDetail('${pubResult._id}')">Full detail →</button>` : ""}
+          ${!pubResult && (sem.subjects && sem.subjects.length > 0) ? `<button class="sem-expand-btn" onclick="confirmDeleteSemester('${esc(sem.semester)}')" style="color:var(--accent-rose-txt);font-weight:600;" title="Delete manual record">🗑 Delete</button>` : ""}
         </div>
       </div>
     </div>`;
 }
+
+async function confirmDeleteSemester(semId) {
+  if (!semId) return;
+  const ok = confirm(`Are you sure you want to delete the ${semId} Semester record? This action cannot be undone.`);
+  if (!ok) return;
+
+  try {
+    const resData = await apiFetch(`/api/student/semester/${encodeURIComponent(semId)}`, {
+      method: "DELETE"
+    });
+
+    if (resData.student) {
+      studentData = resData.student;
+    } else {
+      studentData = await apiFetch("/api/student");
+    }
+
+    renderSgpa();
+    await loadHome();
+  } catch(err) {
+    alert("Failed to delete semester: " + (err.message || "Unknown error"));
+  }
+}
+window.confirmDeleteSemester = confirmDeleteSemester;
 
 function toggleSemExpand(idx, total) {
   const list = document.getElementById(`subj-list-${idx}`);
