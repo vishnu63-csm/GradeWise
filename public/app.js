@@ -40,6 +40,38 @@ const semOrd  = s => SEMESTERS_ALL.indexOf(s);
 const semSort = a => [...a].sort((x,y) => semOrd(x.semester) - semOrd(y.semester));
 const esc     = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
+function animateValue(id, start, end, duration, decimals = 2, isPct = false) {
+  const obj = document.getElementById(id);
+  if (!obj) return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    obj.textContent = end != null ? (isPct ? `${Number(end).toFixed(decimals)}%` : Number(end).toFixed(decimals)) : "—";
+    return;
+  }
+  if (end == null || isNaN(end)) {
+    obj.textContent = "—";
+    return;
+  }
+  const endNum = Number(end);
+  const startNum = Number(start) || 0;
+  if (startNum === endNum) {
+    obj.textContent = isPct ? `${endNum.toFixed(decimals)}%` : (decimals === 0 ? endNum : endNum.toFixed(decimals));
+    return;
+  }
+  let startTimestamp = null;
+  const step = (timestamp) => {
+    if (!startTimestamp) startTimestamp = timestamp;
+    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+    const val = progress * (endNum - startNum) + startNum;
+    obj.textContent = isPct ? `${val.toFixed(decimals)}%` : (decimals === 0 ? Math.floor(val) : val.toFixed(decimals));
+    if (progress < 1) {
+      window.requestAnimationFrame(step);
+    } else {
+      obj.textContent = isPct ? `${endNum.toFixed(decimals)}%` : (decimals === 0 ? endNum : endNum.toFixed(decimals));
+    }
+  };
+  window.requestAnimationFrame(step);
+}
+
 function timeAgo(dateStr) {
   if (!dateStr) return "";
   const d = new Date(dateStr), now = new Date();
@@ -146,11 +178,16 @@ async function loadHome() {
       else cgpaTrendText = "Same as previous sem";
     }
 
-    // Update KPI card values & subtitles
-    document.getElementById("kpiCgpa").textContent     = cgpa != null ? fmt2(cgpa) : "—";
-    document.getElementById("kpiSgpa").textContent     = latestSem ? fmt2(latestSem.sgpa) : "—";
-    document.getElementById("kpiPct").textContent      = pct != null ? fmtPct(pct) : "—";
-    document.getElementById("kpiBacklogs").textContent = backlogs;
+    // Update KPI card values & subtitles (with clean performance animations)
+    const oldCgpa = parseFloat(document.getElementById("kpiCgpa")?.textContent) || 0;
+    const oldSgpa = parseFloat(document.getElementById("kpiSgpa")?.textContent) || 0;
+    const oldPct  = parseFloat(document.getElementById("kpiPct")?.textContent) || 0;
+    const oldBack = parseInt(document.getElementById("kpiBacklogs")?.textContent) || 0;
+
+    animateValue("kpiCgpa", oldCgpa, cgpa, 500, 2, false);
+    animateValue("kpiSgpa", oldSgpa, latestSem ? latestSem.sgpa : null, 500, 2, false);
+    animateValue("kpiPct", oldPct, pct, 500, 2, true);
+    animateValue("kpiBacklogs", oldBack, backlogs, 500, 0, false);
 
     // Update subtitles/captions
     const kpiCards = document.getElementById("homeKpiGrid").querySelectorAll(".metric-card");
@@ -288,7 +325,7 @@ function renderJourneyNodes(manualSems, pubResults) {
     }
 
     return `
-      <div class="journey-node ${cls}" onclick="handleJourneyNodeClick('${sem}')">
+      <div class="journey-node ${cls}" style="animation-delay: ${SEMESTERS_ALL.indexOf(sem) * 60}ms;" onclick="handleJourneyNodeClick('${sem}')">
         <div class="journey-node-circle">${isLatest ? "●" : isCompleted ? "✓" : "○"}</div>
         <div class="journey-node-lbl">${sem}</div>
         ${sgpaDisplay ? `<div style="font-size:9.5px;color:var(--text-muted);font-weight:600;margin-top:2px;">${sgpaDisplay}</div>` : ""}
@@ -479,14 +516,14 @@ function buildSubjectRows(subjects, expanded) {
     return `<div style="font-size:13px;color:var(--text-muted);padding:10px 0;font-style:italic;">No subject-wise data available for this semester.</div>`;
   }
   const visible = expanded ? subjects : subjects.slice(0, PREVIEW_COUNT);
-  return visible.map(sub => {
+  return visible.map((sub, sIdx) => {
     const name  = esc(sub.subject || sub.name || "Subject");
     const code  = sub.code ? `<span class="sem-subject-code">${esc(sub.code)}</span>` : "";
     const grade = sub.grade || "—";
     const isFail = (grade === "F" || grade === "Ab");
     const credits = sub.credits || 0;
     return `
-      <div class="sem-subject-row${isFail ? " failed-row" : ""}">
+      <div class="sem-subject-row${isFail ? " failed-row" : ""}" style="animation-delay: ${sIdx * 45}ms;">
         <div style="flex:1;min-width:0;">
           <div class="sem-subject-name" title="${name}">${name}</div>
           ${code}
