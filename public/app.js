@@ -819,7 +819,7 @@ function renderSgpa() {
         <p style="color:var(--text-sub);max-width:400px;margin:0 auto 20px;">
           Add your semester grades manually using the button above, or wait for your institution to publish results.
         </p>
-        <button class="btn btn-primary" id="addSemBtnEmpty">+ Add First Semester</button>
+        <button class="btn btn-primary" id="addSemBtnEmpty" onclick="openAddSemesterModal()">+ Add First Semester</button>
       </div>`;
     return;
   }
@@ -895,6 +895,166 @@ function renderProfile() {
     </div>`;
 }
 
+/* ════════════════════════════════════════════════════ ADD SEMESTER MODAL ═ */
+function openAddSemesterModal() {
+  const modal = document.getElementById("addSemesterModal");
+  if (!modal) return;
+
+  const errorEl = document.getElementById("addSemError");
+  if (errorEl) errorEl.style.display = "none";
+
+  const sems = getApplicableSemesters(studentData);
+  const existingSems = new Set(sems.map(s => s.semester));
+  const semSelect = document.getElementById("addSemSelect");
+  
+  if (semSelect) {
+    let candidate = "";
+    const allList = (studentData && studentData.category === "Lateral Entry") ? SEMESTERS_LATERAL : SEMESTERS_ALL;
+    for (const s of allList) {
+      if (!existingSems.has(s)) { candidate = s; break; }
+    }
+    semSelect.value = candidate || "1-1";
+  }
+
+  const tbody = document.getElementById("addSemSubjectRows");
+  if (tbody) {
+    tbody.innerHTML = "";
+    for (let i = 0; i < 5; i++) {
+      addSubjectRowToAddSemModal();
+    }
+  }
+
+  openModal("addSemesterModal");
+}
+window.openAddSemesterModal = openAddSemesterModal;
+
+function addSubjectRowToAddSemModal(code = "", name = "", credits = 3, grade = "A") {
+  const tbody = document.getElementById("addSemSubjectRows");
+  if (!tbody) return;
+
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td>
+      <input type="text" class="sem-sub-code" value="${esc(code)}" placeholder="e.g. CS301" style="width:100%;padding:6px 8px;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-main);border-radius:6px;font-size:12px;font-family:var(--font-mono);"/>
+    </td>
+    <td>
+      <input type="text" class="sem-sub-name" value="${esc(name)}" placeholder="Subject Title" style="width:100%;padding:6px 8px;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-main);border-radius:6px;font-size:12.5px;" required/>
+    </td>
+    <td>
+      <select class="sem-sub-credits" style="width:100%;padding:6px;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-main);border-radius:6px;font-size:12.5px;">
+        <option value="1" ${credits == 1 ? "selected" : ""}>1</option>
+        <option value="1.5" ${credits == 1.5 ? "selected" : ""}>1.5</option>
+        <option value="2" ${credits == 2 ? "selected" : ""}>2</option>
+        <option value="2.5" ${credits == 2.5 ? "selected" : ""}>2.5</option>
+        <option value="3" ${credits == 3 || !credits ? "selected" : ""}>3</option>
+        <option value="3.5" ${credits == 3.5 ? "selected" : ""}>3.5</option>
+        <option value="4" ${credits == 4 ? "selected" : ""}>4</option>
+      </select>
+    </td>
+    <td>
+      <select class="sem-sub-grade" style="width:100%;padding:6px;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-main);border-radius:6px;font-size:12.5px;">
+        <option value="S" ${grade === "S" ? "selected" : ""}>S (10)</option>
+        <option value="A" ${grade === "A" ? "selected" : ""}>A (9)</option>
+        <option value="B" ${grade === "B" ? "selected" : ""}>B (8)</option>
+        <option value="C" ${grade === "C" ? "selected" : ""}>C (7)</option>
+        <option value="D" ${grade === "D" ? "selected" : ""}>D (6)</option>
+        <option value="E" ${grade === "E" ? "selected" : ""}>E (5)</option>
+        <option value="F" ${grade === "F" ? "selected" : ""}>F (0)</option>
+        <option value="Ab" ${grade === "Ab" ? "selected" : ""}>Ab (0)</option>
+      </select>
+    </td>
+    <td style="text-align:center;">
+      <button type="button" class="icon-btn" onclick="this.closest('tr').remove()" style="color:var(--brand-danger);padding:4px;" title="Remove row">✕</button>
+    </td>
+  `;
+  tbody.appendChild(tr);
+}
+window.addSubjectRowToAddSemModal = addSubjectRowToAddSemModal;
+
+async function handleAddSemesterSubmit(e) {
+  e.preventDefault();
+  const errorEl = document.getElementById("addSemError");
+  const saveBtn = document.getElementById("saveAddSemBtn");
+  
+  if (errorEl) errorEl.style.display = "none";
+
+  const semester = document.getElementById("addSemSelect")?.value;
+  if (!semester) {
+    showAddSemError("Please select a valid semester.");
+    return;
+  }
+
+  if (studentData && studentData.category === "Lateral Entry" && (semester === "1-1" || semester === "1-2")) {
+    showAddSemError("Lateral Entry students cannot add 1-1 or 1-2 semesters.");
+    return;
+  }
+
+  const rowElements = document.querySelectorAll("#addSemSubjectRows tr");
+  const subjects = [];
+
+  rowElements.forEach(tr => {
+    const code = tr.querySelector(".sem-sub-code")?.value?.trim() || "";
+    const name = tr.querySelector(".sem-sub-name")?.value?.trim() || "";
+    const credits = parseFloat(tr.querySelector(".sem-sub-credits")?.value) || 0;
+    const grade = tr.querySelector(".sem-sub-grade")?.value || "F";
+
+    if (name) {
+      subjects.push({
+        code,
+        subject: name,
+        name,
+        credits,
+        grade,
+      });
+    }
+  });
+
+  if (subjects.length === 0) {
+    showAddSemError("Please enter at least one subject with a valid subject title.");
+    return;
+  }
+
+  try {
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.textContent = "Saving Record...";
+    }
+
+    const resData = await apiFetch("/api/student/semester", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ semester, subjects }),
+    });
+
+    if (resData.student) {
+      studentData = resData.student;
+    } else {
+      studentData = await apiFetch("/api/student");
+    }
+
+    closeModal("addSemesterModal");
+
+    renderSgpa();
+    await loadHome();
+
+  } catch(err) {
+    showAddSemError(err.message || "Failed to save semester record.");
+  } finally {
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.textContent = "Save Semester Record";
+    }
+  }
+}
+
+function showAddSemError(msg) {
+  const errorEl = document.getElementById("addSemError");
+  if (errorEl) {
+    errorEl.textContent = msg;
+    errorEl.style.display = "block";
+  }
+}
+
 /* ════════════════════════════════════════════════════════════════ INIT ═══ */
 document.addEventListener("DOMContentLoaded", async () => {
   if (!guardAuth()) return;
@@ -914,6 +1074,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     localStorage.clear();
     window.location.href = "login.html";
   });
+
+  // Add Semester button & form bindings
+  document.getElementById("addSemBtn")?.addEventListener("click", openAddSemesterModal);
+  document.getElementById("addSemesterForm")?.addEventListener("submit", handleAddSemesterSubmit);
 
   // Hash change routing for browser back/forward buttons
   window.addEventListener("hashchange", handleHashRoute);
