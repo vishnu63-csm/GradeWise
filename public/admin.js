@@ -326,68 +326,101 @@ function renderRecordEditor(r) {
   const body = document.getElementById("recordEditorBody");
   const issues = (r.reviewReasons || []).concat(r.extractionErrors || []);
 
+  // Find index in current review results array for next/prev paging
+  const reviewResultIds = window._reviewResultIds || [];
+  const currentIdx = reviewResultIds.indexOf(r._id);
+  const prevBtn = currentIdx > 0
+    ? `<button class="btn btn-ghost btn-sm" onclick="openRecordEditor('${reviewResultIds[currentIdx - 1]}')">← Previous Student</button>`
+    : "";
+  const nextBtn = currentIdx !== -1 && currentIdx < reviewResultIds.length - 1
+    ? `<button class="btn btn-ghost btn-sm" onclick="openRecordEditor('${reviewResultIds[currentIdx + 1]}')">Next Student →</button>`
+    : "";
+
   body.innerHTML = `
-    <!-- Student Info -->
-    <div class="card-box" style="margin-bottom:16px;background:var(--bg-muted);">
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;font-size:13px;">
-        <div>
-          <div style="font-size:10px;font-weight:700;color:var(--text-muted);margin-bottom:3px;">ROLL NUMBER</div>
-          <div style="font-weight:700;font-family:var(--font-mono);">${esc(r.rollNumber)}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;">
+      
+      <!-- Left Side: Raw PDF Block -->
+      <div class="card-box" style="padding:16px;">
+        <div style="font-weight:700;font-size:12px;color:var(--text-sub);margin-bottom:8px;display:flex;justify-content:space-between;">
+          <span>Raw PDF Source Block</span>
+          <span class="badge badge-info" style="font-size:10px;">Page Text Segment</span>
         </div>
-        <div>
-          <div style="font-size:10px;font-weight:700;color:var(--text-muted);margin-bottom:3px;">STUDENT NAME</div>
-          <input id="editName" value="${esc(r.studentName || "")}" style="width:100%;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-main);border-radius:6px;padding:4px 8px;font-size:13px;" placeholder="Enter student name"/>
-        </div>
-        <div>
-          <div style="font-size:10px;font-weight:700;color:var(--text-muted);margin-bottom:3px;">DEPARTMENT</div>
-          <div>${esc(r.department || "—")}</div>
-        </div>
-        <div>
-          <div style="font-size:10px;font-weight:700;color:var(--text-muted);margin-bottom:3px;">SEMESTER</div>
-          <div>${esc(r.semester)}</div>
-        </div>
+        <pre style="white-space:pre-wrap;font-family:var(--font-mono);font-size:11.5px;background:var(--bg-muted);color:var(--text-main);padding:12px;border-radius:6px;max-height:450px;overflow-y:auto;margin:0;line-height:1.6;border:1px solid var(--border-color);">${esc(r.rawText || "No raw text segment captured for this student.")}</pre>
       </div>
+
+      <!-- Right Side: Edit Form -->
+      <div>
+        <!-- Student Info -->
+        <div class="card-box" style="margin-bottom:16px;background:var(--bg-muted);">
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;font-size:13px;">
+            <div>
+              <div style="font-size:10px;font-weight:700;color:var(--text-muted);margin-bottom:3px;">ROLL NUMBER</div>
+              <div style="font-weight:700;font-family:var(--font-mono);">${esc(r.rollNumber)}</div>
+            </div>
+            <div>
+              <div style="font-size:10px;font-weight:700;color:var(--text-muted);margin-bottom:3px;">STUDENT NAME</div>
+              <input id="editName" value="${esc(r.studentName || "")}" style="width:100%;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-main);border-radius:6px;padding:4px 8px;font-size:13px;" placeholder="Enter student name"/>
+            </div>
+            <div>
+              <div style="font-size:10px;font-weight:700;color:var(--text-muted);margin-bottom:3px;">DEPARTMENT</div>
+              <input id="editDept" value="${esc(r.department || "")}" style="width:100%;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-main);border-radius:6px;padding:4px 8px;font-size:13px;" placeholder="e.g. CSE"/>
+            </div>
+            <div>
+              <div style="font-size:10px;font-weight:700;color:var(--text-muted);margin-bottom:3px;">SEMESTER</div>
+              <div>${esc(r.semester)}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Issues -->
+        ${issues.length > 0 ? `
+        <div style="background:rgba(234,179,8,0.08);border:1px solid var(--accent-gold-bg);border-radius:8px;padding:12px 16px;margin-bottom:16px;">
+          <div style="font-weight:700;font-size:13px;color:var(--accent-gold-txt);margin-bottom:6px;">⚠ Validation Issues</div>
+          <ul style="margin:0;padding-left:16px;font-size:12.5px;color:var(--text-sub);">
+            ${issues.map(i => `<li>${esc(i)}</li>`).join("")}
+          </ul>
+        </div>` : `
+        <div style="background:rgba(34,197,94,0.08);border:1px solid var(--accent-green-bg);border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:13px;color:var(--accent-green-txt);">
+          ✓ No validation issues found for this record.
+        </div>`}
+
+        <!-- Calculated Values -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;">
+          ${[["SGPA", r.sgpa?.toFixed(2) || "—"], ["Percentage", r.percentage?.toFixed(2)+"%"], ["Credits", r.totalCredits], ["Backlogs", r.backlogCount]].map(([l,v]) => `
+            <div style="text-align:center;padding:10px;background:var(--bg-muted);border-radius:8px;">
+              <div style="font-size:16px;font-weight:800;color:var(--text-main);">${v}</div>
+              <div style="font-size:9px;color:var(--text-muted);font-weight:600;">${l}</div>
+            </div>`).join("")}
+        </div>
+
+        <!-- Subject Table -->
+        <div style="font-weight:700;font-size:13px;margin-bottom:8px;">Subject Results</div>
+        <div style="overflow-x:auto;max-height:220px;overflow-y:auto;border:1px solid var(--border-color);border-radius:6px;margin-bottom:8px;">
+          <table class="data-table" id="editSubjectsTable" style="font-size:12px;width:100%;margin:0;">
+            <thead><tr><th>#</th><th>Code</th><th>Name</th><th>Cr</th><th>Int</th><th>Ext</th><th>Grd</th><th></th></tr></thead>
+            <tbody id="editSubjectRows">
+              ${(r.subjects || []).map((s, idx) => buildSubjectRow(s, idx)).join("")}
+            </tbody>
+          </table>
+        </div>
+        <button class="btn btn-ghost btn-sm" style="margin-bottom:16px;" onclick="addSubjectRow()">+ Add Subject</button>
+      </div>
+
     </div>
 
-    <!-- Issues -->
-    ${issues.length > 0 ? `
-    <div style="background:rgba(234,179,8,0.08);border:1px solid var(--accent-gold-bg);border-radius:8px;padding:12px 16px;margin-bottom:16px;">
-      <div style="font-weight:700;font-size:13px;color:var(--accent-gold-txt);margin-bottom:6px;">⚠ Validation Issues</div>
-      <ul style="margin:0;padding-left:16px;font-size:12.5px;color:var(--text-sub);">
-        ${issues.map(i => `<li>${esc(i)}</li>`).join("")}
-      </ul>
-    </div>` : `
-    <div style="background:rgba(34,197,94,0.08);border:1px solid var(--accent-green-bg);border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:13px;color:var(--accent-green-txt);">
-      ✓ No validation issues found for this record.
-    </div>`}
-
-    <!-- Calculated Values -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;">
-      ${[["SGPA", r.sgpa?.toFixed(2) || "—"], ["Percentage", r.percentage?.toFixed(2)+"%"], ["Credits", r.totalCredits], ["Backlogs", r.backlogCount]].map(([l,v]) => `
-        <div style="text-align:center;padding:10px;background:var(--bg-muted);border-radius:8px;">
-          <div style="font-size:18px;font-weight:800;color:var(--text-main);">${v}</div>
-          <div style="font-size:10px;color:var(--text-muted);font-weight:600;">${l}</div>
-        </div>`).join("")}
-    </div>
-
-    <!-- Subject Table -->
-    <div style="font-weight:700;font-size:13px;margin-bottom:8px;">Subject Results</div>
-    <div style="overflow-x:auto;">
-      <table class="data-table" id="editSubjectsTable" style="font-size:12px;min-width:650px;">
-        <thead><tr><th>#</th><th>Code</th><th>Subject Name</th><th>Credits</th><th>Internal</th><th>External</th><th>Grade</th><th>GP</th><th></th></tr></thead>
-        <tbody id="editSubjectRows">
-          ${(r.subjects || []).map((s, idx) => buildSubjectRow(s, idx)).join("")}
-        </tbody>
-      </table>
-    </div>
-    <button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="addSubjectRow()">+ Add Subject</button>
-
-    <!-- Actions -->
-    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border-color);">
-      <button class="btn btn-secondary" onclick="closeModal('recordEditorModal')">Cancel</button>
-      <button class="btn btn-ghost" onclick="saveRecordDraft()">Save Draft</button>
-      <button class="btn btn-primary" onclick="saveAndVerify()">Save &amp; Verify ✓</button>
+    <!-- Paging and Footer Controls -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px;padding-top:16px;border-top:1px solid var(--border-color);flex-wrap:wrap;gap:12px;">
+      <div style="display:flex;gap:8px;">
+        ${prevBtn}
+        ${nextBtn}
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-secondary" onclick="closeModal('recordEditorModal')">Close</button>
+        <button class="btn btn-ghost" onclick="saveRecordDraft()">Save Draft</button>
+        <button class="btn btn-primary" onclick="saveAndVerify()">Mark as Verified ✓</button>
+      </div>
     </div>`;
+}
 }
 
 function buildSubjectRow(s, idx) {

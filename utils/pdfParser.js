@@ -273,15 +273,30 @@ async function parseResultPdf(bufferOrText, adminMeta = {}) {
 
     // Try to find student name (line containing roll or next line)
     let studentName = "";
-    for (const line of studentLines.slice(0, 5)) {
+    for (let i = 0; i < Math.min(5, studentLines.length); i++) {
+      const line = studentLines[i];
+      const trimmed = line.trim();
+      
+      // Skip lines containing subject code patterns
+      if (/[A-Z]{1,4}\d{2,6}[A-Z0-9]*/.test(trimmed)) continue;
+      // Skip lines containing grade points or indicators (e.g. credits, grades)
+      if (/\b(S|A|B|C|D|E|F|Ab)\b/.test(trimmed) && /\b\d\b/.test(trimmed)) continue;
+      // Skip header words
+      if (/subject|code|grade|credit|internal|external|marks|exam|session|regulation|semester|jntu|college|university|result/i.test(trimmed)) continue;
+      
+      // Clean candidate string
       const clean = line
         .replace(ROLL_REGEX, "")
-        .replace(/\b(HTNO|ROLL|NAME|STUDENT|NO|HALL|TICKET|REGISTRATION|NUMBER)\b/gi, "")
-        .replace(/\d/g, "")
+        .replace(/\b(HTNO|ROLL|NAME|STUDENT|NO|HALL|TICKET|REGISTRATION|NUMBER|FATHER|GENDER|CLASS|SECTION|BRANCH)\b/gi, "")
         .replace(/[^A-Za-z\s.]/g, "")
         .replace(/\s+/g, " ")
         .trim();
+        
       if (clean.length >= 3 && /[A-Za-z]{2,}/.test(clean)) {
+        // Exclude common JNTU course/subject keywords
+        if (/\b(design|drawing|steel|structures|industrial|safety|water|resource|engineering|environmental|lab|practical|project|seminar|workshop|mathematics|physics|chemistry|english|humanities|management|science|programming|data|database|network|os|operating|software|graphics|web|cyber|security|cloud|machine|learning|intelligence)\b/i.test(clean)) {
+          continue;
+        }
         studentName = clean;
         break;
       }
@@ -330,6 +345,7 @@ async function parseResultPdf(bufferOrText, adminMeta = {}) {
       subjects,
       validationStatus,
       validationNotes,
+      rawText: studentLines.join("\n"),
     });
   }
 

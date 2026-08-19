@@ -262,6 +262,7 @@ router.post("/upload-pdf", upload.single("pdf"), async (req, res) => {
         examType:      s.examType     || examType     || "Regular",
         subjects:      s.subjects     || [],
         isPublished:   false,
+        rawText:       s.rawText || "",
       };
 
       // Run validation

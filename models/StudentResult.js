@@ -90,6 +90,7 @@ const StudentResultSchema = new mongoose.Schema(
     isVerified:       { type: Boolean, default: false },
     reviewedBy:       { type: String, default: null },
     reviewedAt:       { type: Date, default: null },
+    rawText:          { type: String, default: "" },
 
     // Published flag (controlled by upload status)
     isPublished: { type: Boolean, default: false, index: true },
