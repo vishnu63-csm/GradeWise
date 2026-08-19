@@ -472,7 +472,7 @@ router.post("/upload/:id/publish", async (req, res) => {
     const forcePublishAll = req.body.forcePublishAll === true;
     const resultFilter = { uploadId: uploadDoc._id, isPublished: false };
     if (!forcePublishAll) {
-      resultFilter.validationStatus = { $in: ["VALID"] };
+      resultFilter.validationStatus = { $in: ["VALID", "VERIFIED", "READY_TO_PUBLISH"] };
     }
 
     const updateResult = await StudentResult.updateMany(

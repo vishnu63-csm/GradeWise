@@ -709,18 +709,20 @@ document.getElementById("uploadForm").addEventListener("submit", async (e) => {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Upload failed");
 
+    const reconciled = data.studentCount === (data.validCount + data.needsReviewCount);
     const hasReview = data.needsReviewCount > 0;
-    msg.innerHTML = `<div class="alert alert-${hasReview ? "warning" : "success"}" style="background:var(--bg-muted);border:1px solid var(--border-color);border-radius:10px;padding:16px;">
-      <div style="font-weight:700;margin-bottom:8px;">${hasReview ? "⚠ Processing complete — review needed" : "✅ Processing complete"}</div>
+    msg.innerHTML = `<div class="alert alert-${!reconciled ? "error" : hasReview ? "warning" : "success"}" style="background:var(--bg-muted);border:1px solid var(--border-color);border-radius:10px;padding:16px;">
+      <div style="font-weight:700;margin-bottom:8px;">${!reconciled ? "⚠ Reconciliation Discrepancy Detected" : hasReview ? "⚠ Processing complete — review needed" : "✅ Processing complete"}</div>
       <div style="font-size:13px;color:var(--text-sub);">
         Total: <strong>${data.studentCount}</strong> &nbsp;|&nbsp;
         Valid: <strong style="color:var(--accent-green-txt);">${data.validCount}</strong> &nbsp;|&nbsp;
         Needs Review: <strong style="color:var(--accent-gold-txt);">${data.needsReviewCount}</strong>
         ${data.duplicateCount > 0 ? ` &nbsp;|&nbsp; Duplicates: <strong style="color:var(--accent-rose-txt);">${data.duplicateCount}</strong>` : ""}
       </div>
+      ${!reconciled ? `<div style="font-size:12px;color:var(--brand-danger);margin-top:8px;font-weight:600;">✕ Warning: Total detected students does not equal Valid + Needs Review count.</div>` : ""}
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
         ${hasReview ? `<button class="btn btn-ghost btn-sm" onclick="openReviewModal('${data.uploadId}')">Review ${data.needsReviewCount} records</button>` : ""}
-        <button class="btn btn-primary btn-sm" onclick="confirmPublish('${data.uploadId}', ${data.needsReviewCount})">Publish Valid Records</button>
+        <button class="btn btn-primary btn-sm" ${!reconciled ? "disabled title='Cannot publish with reconciliation error'" : ""} onclick="confirmPublish('${data.uploadId}', ${data.needsReviewCount})">Publish Valid Records</button>
       </div>
     </div>`;
   } catch(err) {
