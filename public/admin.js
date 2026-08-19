@@ -97,39 +97,52 @@ async function loadUploadsList() {
       return;
     }
 
-    container.innerHTML = `
-      <table class="data-table">
-        <thead>
-          <tr><th>File Name</th><th>Sem</th><th>Regulation</th><th>Session</th><th>Students</th><th>Valid / Review</th><th>Status</th><th>Actions</th></tr>
-        </thead>
-        <tbody>
-          ${uploads.map(u => `
-            <tr>
-              <td><strong>${esc(u.fileName)}</strong></td>
-              <td>${esc(u.semester)}</td>
-              <td>${esc(u.regulation)}</td>
-              <td>${esc(u.examSession || "—")}</td>
-              <td>${u.totalStudents || 0}</td>
-              <td><span class="text-success">${u.validStudents || 0}</span> / <span class="text-danger">${u.needsReviewCount || 0}</span></td>
-              <td><span class="status-pill status-${u.status}">${esc(u.status)}</span></td>
-              <td>
-                ${u.status === "PUBLISHED" ? 
-                  `<button class="btn btn-ghost btn-sm" onclick="unpublishUpload('${u._id}')">Unpublish</button>` :
-                  `<button class="btn btn-primary btn-sm" onclick="publishUpload('${u._id}')">Publish</button>`
-                }
-                <button class="btn btn-danger btn-sm" onclick="deleteUpload('${u._id}')">Delete</button>
-              </td>
-            </tr>
-          `).join("")}
-        </tbody>
-      </table>`;
+  container.innerHTML = `
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>File Name</th><th>Sem</th><th>Regulation</th><th>Session</th>
+          <th>Total</th><th>Valid</th><th>Needs Review</th><th>Status</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${uploads.map(u => `
+          <tr>
+            <td><strong>${esc(u.fileName)}</strong></td>
+            <td>${esc(u.semester)}</td>
+            <td>${esc(u.regulation)}</td>
+            <td>${esc(u.examSession || "—")}</td>
+            <td>${u.totalStudents || 0}</td>
+            <td><span class="badge badge-pass">${u.validStudents || 0} valid</span></td>
+            <td>
+              ${(u.needsReviewCount || 0) > 0
+                ? `<button class="btn btn-ghost btn-sm" style="color:var(--accent-gold-txt);border-color:var(--accent-gold-txt);" onclick="openReviewModal('${u._id}')">⚠ ${u.needsReviewCount} — Review Now</button>`
+                : `<span style="color:var(--accent-green-txt);font-size:12px;">✓ All clear</span>`
+              }
+            </td>
+            <td><span class="status-pill status-${u.status}">${esc(u.status)}</span></td>
+            <td style="display:flex;gap:6px;flex-wrap:wrap;">
+              ${u.status !== "PUBLISHED"
+                ? `<button class="btn btn-ghost btn-sm" onclick="openReviewModal('${u._id}')">Review</button>
+                   <button class="btn btn-primary btn-sm" onclick="confirmPublish('${u._id}', ${u.needsReviewCount || 0})">Publish</button>`
+                : `<button class="btn btn-ghost btn-sm" onclick="unpublishUpload('${u._id}')">Unpublish</button>`
+              }
+              ${u.status !== "PUBLISHED" ? `<button class="btn btn-danger btn-sm" onclick="deleteUpload('${u._id}')">Delete</button>` : ""}
+            </td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>`;
   } catch(e) {
     container.innerHTML = `<div class="alert alert-error">⚠ ${esc(e.message)}</div>`;
   }
 }
 
-async function publishUpload(id) {
-  if (!confirm("Are you sure you want to publish these results? They will become immediately visible to matching students.")) return;
+async function confirmPublish(id, needsReviewCount) {
+  const msg = needsReviewCount > 0
+    ? `⚠ There are ${needsReviewCount} records that NEED REVIEW.\n\nPublishing will only include VALID records.\n\nDo you want to publish the valid records now?`
+    : "Publish all valid results? They will become immediately visible to matching students.";
+  if (!confirm(msg)) return;
   try {
     const res = await adminFetch(`/api/admin/upload/${id}/publish`, { method: "POST" });
     alert(res.message || "Published successfully!");
@@ -137,6 +150,11 @@ async function publishUpload(id) {
   } catch(e) {
     alert("Publishing failed: " + e.message);
   }
+}
+window.confirmPublish = confirmPublish;
+
+async function publishUpload(id) {
+  await confirmPublish(id, 0);
 }
 window.publishUpload = publishUpload;
 
@@ -162,6 +180,324 @@ async function deleteUpload(id) {
   }
 }
 window.deleteUpload = deleteUpload;
+
+/* ═══════════════════════════════════════════════════════════ REVIEW MODAL ══ */
+let _reviewUploadId = null;
+let _reviewPage = 1;
+let _reviewFilter = "";
+
+async function openReviewModal(uploadId) {
+  _reviewUploadId = uploadId;
+  _reviewPage = 1;
+  _reviewFilter = "";
+  openModal("reviewModal");
+  await loadReviewRecords();
+}
+window.openReviewModal = openReviewModal;
+
+async function loadReviewRecords() {
+  const body = document.getElementById("reviewModalBody");
+  const tabs = document.getElementById("reviewTabs");
+  if (!body || !_reviewUploadId) return;
+  body.innerHTML = `<div style="padding:20px;color:var(--text-sub);">Loading records…</div>`;
+
+  try {
+    const qp = new URLSearchParams({ page: _reviewPage, limit: 20 });
+    if (_reviewFilter) qp.set("validationStatus", _reviewFilter);
+    const data = await adminFetch(`/api/admin/upload/${_reviewUploadId}?${qp}`);
+    const u = data.upload || {};
+    const results = data.results || [];
+    const total = data.total || 0;
+
+    // Tabs
+    const allCount = u.totalStudents || 0;
+    const validCount = u.validStudents || 0;
+    const needsReviewCount = u.needsReviewCount || 0;
+
+    if (tabs) {
+      tabs.innerHTML = `
+        <div style="display:flex;gap:0;border-bottom:1px solid var(--border-color);margin-bottom:16px;">
+          ${[["","All",allCount],["VALID","Valid",validCount],["NEEDS_REVIEW","Needs Review",needsReviewCount]].map(([val,label,cnt]) => `
+            <button onclick="setReviewFilter('${val}')" style="padding:8px 16px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:${_reviewFilter===val?"var(--brand-primary)":"var(--text-sub)"};border-bottom:2px solid ${_reviewFilter===val?"var(--brand-primary)":"transparent"};transition:all 0.15s;">
+              ${label} <span style="font-size:11px;opacity:0.7;">(${cnt})</span>
+            </button>
+          `).join("")}
+        </div>`;
+    }
+
+    if (results.length === 0) {
+      body.innerHTML = `
+        <div style="padding:40px;text-align:center;color:var(--text-sub);">
+          <div style="font-size:36px;margin-bottom:12px;">✓</div>
+          <div style="font-weight:600;font-size:14px;">No Records Require Review</div>
+          <div style="font-size:13px;margin-top:6px;">All extracted records have been successfully validated.</div>
+        </div>`;
+      return;
+    }
+
+    const pages = Math.ceil(total / 20);
+
+    body.innerHTML = `
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">
+        Showing ${results.length} of ${total} records (Page ${_reviewPage}/${pages})
+      </div>
+      <table class="data-table" style="font-size:13px;">
+        <thead>
+          <tr>
+            <th>Roll Number</th><th>Student Name</th><th>Dept</th>
+            <th>Issues</th><th>SGPA</th><th>Status</th><th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${results.map(r => {
+            const issues = (r.reviewReasons || []);
+            const statusColor = r.validationStatus === "VALID" ? "var(--accent-green-txt)"
+              : r.validationStatus === "NEEDS_REVIEW" ? "var(--accent-gold-txt)" : "var(--accent-rose-txt)";
+            return `<tr>
+              <td><code style="font-size:12px;">${esc(r.rollNumber)}</code></td>
+              <td>${esc(r.studentName || "—")}</td>
+              <td>${esc(r.department || "—")}</td>
+              <td style="max-width:200px;">
+                ${issues.length > 0
+                  ? `<span style="color:var(--accent-gold-txt);font-size:12px;" title="${issues.join(' | ')}">⚠ ${issues[0]}${issues.length > 1 ? ` +${issues.length-1} more` : ""}</span>`
+                  : `<span style="color:var(--accent-green-txt);font-size:12px;">✓ OK</span>`}
+              </td>
+              <td>${r.sgpa > 0 ? r.sgpa.toFixed(2) : "—"}</td>
+              <td><span style="font-size:11px;font-weight:700;color:${statusColor};">${r.validationStatus}</span></td>
+              <td>
+                <button class="btn btn-ghost btn-sm" style="font-size:12px;" onclick="openRecordEditor('${r._id}')">
+                  ${r.validationStatus === "NEEDS_REVIEW" ? "Review" : "View"}
+                </button>
+              </td>
+            </tr>`;
+          }).join("")}
+        </tbody>
+      </table>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:16px;">
+        ${_reviewPage > 1 ? `<button class="btn btn-ghost btn-sm" onclick="reviewPaginate(${_reviewPage-1})">← Prev</button>` : ""}
+        <span style="line-height:32px;font-size:13px;color:var(--text-sub);">Page ${_reviewPage} / ${pages}</span>
+        ${_reviewPage < pages ? `<button class="btn btn-ghost btn-sm" onclick="reviewPaginate(${_reviewPage+1})">Next →</button>` : ""}
+      </div>`;
+  } catch(e) {
+    body.innerHTML = `<div class="alert alert-error">⚠ ${esc(e.message)}</div>`;
+  }
+}
+window.loadReviewRecords = loadReviewRecords;
+
+function setReviewFilter(f) {
+  _reviewFilter = f;
+  _reviewPage = 1;
+  loadReviewRecords();
+}
+window.setReviewFilter = setReviewFilter;
+
+function reviewPaginate(page) {
+  _reviewPage = page;
+  loadReviewRecords();
+}
+window.reviewPaginate = reviewPaginate;
+
+/* ═══════════════════════════════════════════════════════════ RECORD EDITOR ══ */
+let _editingResultId = null;
+let _editingResultData = null;
+
+async function openRecordEditor(resultId) {
+  _editingResultId = resultId;
+  const body = document.getElementById("recordEditorBody");
+  const title = document.getElementById("recordEditorTitle");
+  if (!body) return;
+  openModal("recordEditorModal");
+  body.innerHTML = `<div style="padding:20px;color:var(--text-sub);">Loading result details…</div>`;
+
+  try {
+    // Fetch single result (via upload detail endpoint with no filter)
+    const data = await adminFetch(`/api/admin/results/${resultId}`);
+    const r = data.result;
+    _editingResultData = JSON.parse(JSON.stringify(r));
+    title.textContent = `Reviewing: ${r.rollNumber}`;
+    renderRecordEditor(r);
+  } catch(e) {
+    body.innerHTML = `<div class="alert alert-error">❌ ${esc(e.message)}</div>`;
+  }
+}
+window.openRecordEditor = openRecordEditor;
+
+function renderRecordEditor(r) {
+  const body = document.getElementById("recordEditorBody");
+  const issues = (r.reviewReasons || []).concat(r.extractionErrors || []);
+
+  body.innerHTML = `
+    <!-- Student Info -->
+    <div class="card-box" style="margin-bottom:16px;background:var(--bg-muted);">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;font-size:13px;">
+        <div>
+          <div style="font-size:10px;font-weight:700;color:var(--text-muted);margin-bottom:3px;">ROLL NUMBER</div>
+          <div style="font-weight:700;font-family:var(--font-mono);">${esc(r.rollNumber)}</div>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;color:var(--text-muted);margin-bottom:3px;">STUDENT NAME</div>
+          <input id="editName" value="${esc(r.studentName || "")}" style="width:100%;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-main);border-radius:6px;padding:4px 8px;font-size:13px;" placeholder="Enter student name"/>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;color:var(--text-muted);margin-bottom:3px;">DEPARTMENT</div>
+          <div>${esc(r.department || "—")}</div>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;color:var(--text-muted);margin-bottom:3px;">SEMESTER</div>
+          <div>${esc(r.semester)}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Issues -->
+    ${issues.length > 0 ? `
+    <div style="background:rgba(234,179,8,0.08);border:1px solid var(--accent-gold-bg);border-radius:8px;padding:12px 16px;margin-bottom:16px;">
+      <div style="font-weight:700;font-size:13px;color:var(--accent-gold-txt);margin-bottom:6px;">⚠ Validation Issues</div>
+      <ul style="margin:0;padding-left:16px;font-size:12.5px;color:var(--text-sub);">
+        ${issues.map(i => `<li>${esc(i)}</li>`).join("")}
+      </ul>
+    </div>` : `
+    <div style="background:rgba(34,197,94,0.08);border:1px solid var(--accent-green-bg);border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:13px;color:var(--accent-green-txt);">
+      ✓ No validation issues found for this record.
+    </div>`}
+
+    <!-- Calculated Values -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;">
+      ${[["SGPA", r.sgpa?.toFixed(2) || "—"], ["Percentage", r.percentage?.toFixed(2)+"%"], ["Credits", r.totalCredits], ["Backlogs", r.backlogCount]].map(([l,v]) => `
+        <div style="text-align:center;padding:10px;background:var(--bg-muted);border-radius:8px;">
+          <div style="font-size:18px;font-weight:800;color:var(--text-main);">${v}</div>
+          <div style="font-size:10px;color:var(--text-muted);font-weight:600;">${l}</div>
+        </div>`).join("")}
+    </div>
+
+    <!-- Subject Table -->
+    <div style="font-weight:700;font-size:13px;margin-bottom:8px;">Subject Results</div>
+    <div style="overflow-x:auto;">
+      <table class="data-table" id="editSubjectsTable" style="font-size:12px;min-width:650px;">
+        <thead><tr><th>#</th><th>Code</th><th>Subject Name</th><th>Credits</th><th>Internal</th><th>External</th><th>Grade</th><th>GP</th><th></th></tr></thead>
+        <tbody id="editSubjectRows">
+          ${(r.subjects || []).map((s, idx) => buildSubjectRow(s, idx)).join("")}
+        </tbody>
+      </table>
+    </div>
+    <button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="addSubjectRow()">+ Add Subject</button>
+
+    <!-- Actions -->
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border-color);">
+      <button class="btn btn-secondary" onclick="closeModal('recordEditorModal')">Cancel</button>
+      <button class="btn btn-ghost" onclick="saveRecordDraft()">Save Draft</button>
+      <button class="btn btn-primary" onclick="saveAndVerify()">Save &amp; Verify ✓</button>
+    </div>`;
+}
+
+function buildSubjectRow(s, idx) {
+  const grades = ["S","A","B","C","D","E","F","Ab"];
+  return `<tr id="subj-row-${idx}" data-idx="${idx}">
+    <td style="color:var(--text-muted);">${idx+1}</td>
+    <td><input value="${esc(s.code||"")}" class="subj-code" data-idx="${idx}" style="width:80px;" placeholder="Code"/></td>
+    <td><input value="${esc(s.name||"")}" class="subj-name" data-idx="${idx}" style="width:180px;" placeholder="Subject Name"/></td>
+    <td><input type="number" value="${s.credits||3}" class="subj-credits" data-idx="${idx}" style="width:55px;" min="1" max="6"/></td>
+    <td><input type="number" value="${s.internalMarks!=null?s.internalMarks:""}" class="subj-int" data-idx="${idx}" style="width:55px;" placeholder="—"/></td>
+    <td><input type="number" value="${s.externalMarks!=null?s.externalMarks:""}" class="subj-ext" data-idx="${idx}" style="width:55px;" placeholder="—"/></td>
+    <td><select class="subj-grade" data-idx="${idx}" style="width:60px;">${grades.map(g => `<option value="${g}"${g===s.grade?" selected":""}>${g}</option>`).join("")}</select></td>
+    <td class="subj-gp-${idx}">${s.gradePoint||0}</td>
+    <td><button onclick="removeSubjectRow(${idx})" style="background:none;border:none;cursor:pointer;color:var(--accent-rose-txt);">✕</button></td>
+  </tr>`;
+}
+
+function addSubjectRow() {
+  const tbody = document.getElementById("editSubjectRows");
+  if (!tbody) return;
+  const idx = tbody.querySelectorAll("tr").length;
+  const newRow = document.createElement("tr");
+  newRow.id = `subj-row-${idx}`;
+  newRow.dataset.idx = idx;
+  const grades = ["S","A","B","C","D","E","F","Ab"];
+  newRow.innerHTML = `
+    <td style="color:var(--text-muted);">${idx+1}</td>
+    <td><input value="" class="subj-code" data-idx="${idx}" style="width:80px;" placeholder="Code"/></td>
+    <td><input value="" class="subj-name" data-idx="${idx}" style="width:180px;" placeholder="Subject Name"/></td>
+    <td><input type="number" value="3" class="subj-credits" data-idx="${idx}" style="width:55px;" min="1" max="6"/></td>
+    <td><input type="number" value="" class="subj-int" data-idx="${idx}" style="width:55px;" placeholder="—"/></td>
+    <td><input type="number" value="" class="subj-ext" data-idx="${idx}" style="width:55px;" placeholder="—"/></td>
+    <td><select class="subj-grade" data-idx="${idx}" style="width:60px;">${grades.map(g => `<option value="${g}">${g}</option>`).join("")}</select></td>
+    <td class="subj-gp-${idx}">0</td>
+    <td><button onclick="removeSubjectRow(${idx})" style="background:none;border:none;cursor:pointer;color:var(--accent-rose-txt);">✕</button></td>`;
+  tbody.appendChild(newRow);
+}
+window.addSubjectRow = addSubjectRow;
+
+function removeSubjectRow(idx) {
+  document.getElementById(`subj-row-${idx}`)?.remove();
+}
+window.removeSubjectRow = removeSubjectRow;
+
+function collectSubjectsFromEditor() {
+  const GRADE_POINTS = { S:10, A:9, B:8, C:7, D:6, E:5, F:0, Ab:0 };
+  const rows = document.querySelectorAll("#editSubjectRows tr");
+  return Array.from(rows).map(row => {
+    const idx = row.dataset.idx;
+    const grade = row.querySelector(`.subj-grade`)?.value || "F";
+    const credits = parseFloat(row.querySelector(`.subj-credits`)?.value) || 3;
+    const gradePoint = GRADE_POINTS[grade] !== undefined ? GRADE_POINTS[grade] : 0;
+    const intV = row.querySelector(`.subj-int`)?.value;
+    const extV = row.querySelector(`.subj-ext`)?.value;
+    return {
+      code: row.querySelector(`.subj-code`)?.value?.trim() || "",
+      name: row.querySelector(`.subj-name`)?.value?.trim() || "Subject",
+      credits,
+      internalMarks: intV !== "" && intV != null ? parseFloat(intV) : null,
+      externalMarks: extV !== "" && extV != null ? parseFloat(extV) : null,
+      grade,
+      gradePoint,
+      passed: grade !== "F" && grade !== "Ab",
+    };
+  });
+}
+
+async function saveRecordDraft() {
+  if (!_editingResultId) return;
+  const payload = {
+    studentName: document.getElementById("editName")?.value?.trim() || "",
+    subjects: collectSubjectsFromEditor(),
+  };
+  try {
+    const uploadId = _editingResultData?.uploadId || _reviewUploadId;
+    const res = await adminFetch(`/api/admin/upload/${uploadId}/result/${_editingResultId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    alert("Draft saved. " + (res.message || ""));
+    loadReviewRecords();
+  } catch(e) {
+    alert("Save failed: " + e.message);
+  }
+}
+window.saveRecordDraft = saveRecordDraft;
+
+async function saveAndVerify() {
+  if (!_editingResultId) return;
+  const uploadId = _editingResultData?.uploadId || _reviewUploadId;
+  const payload = {
+    studentName: document.getElementById("editName")?.value?.trim() || "",
+    subjects: collectSubjectsFromEditor(),
+  };
+  try {
+    await adminFetch(`/api/admin/upload/${uploadId}/result/${_editingResultId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const res = await adminFetch(`/api/admin/results/${_editingResultId}/verify`, { method: "POST" });
+    alert(res.message || "Verified!");
+    closeModal("recordEditorModal");
+    loadReviewRecords();
+  } catch(e) {
+    alert("Verify failed: " + e.message);
+  }
+}
+window.saveAndVerify = saveAndVerify;
 
 /* ═══════════════════════════════════════════════════════════ UPLOAD WIZARD ═ */
 document.getElementById("uploadForm").addEventListener("submit", async (e) => {
@@ -190,10 +526,19 @@ document.getElementById("uploadForm").addEventListener("submit", async (e) => {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Upload failed");
 
-    msg.innerHTML = `<div class="alert alert-success">
-      ✅ Processing complete! Found <strong>${data.studentCount}</strong> student records.<br/>
-      Valid: ${data.validCount} | Needs Review: ${data.needsReviewCount}<br/>
-      <button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="publishUpload('${data.uploadId}')">Publish Now</button>
+    const hasReview = data.needsReviewCount > 0;
+    msg.innerHTML = `<div class="alert alert-${hasReview ? "warning" : "success"}" style="background:var(--bg-muted);border:1px solid var(--border-color);border-radius:10px;padding:16px;">
+      <div style="font-weight:700;margin-bottom:8px;">${hasReview ? "⚠ Processing complete — review needed" : "✅ Processing complete"}</div>
+      <div style="font-size:13px;color:var(--text-sub);">
+        Total: <strong>${data.studentCount}</strong> &nbsp;|&nbsp;
+        Valid: <strong style="color:var(--accent-green-txt);">${data.validCount}</strong> &nbsp;|&nbsp;
+        Needs Review: <strong style="color:var(--accent-gold-txt);">${data.needsReviewCount}</strong>
+        ${data.duplicateCount > 0 ? ` &nbsp;|&nbsp; Duplicates: <strong style="color:var(--accent-rose-txt);">${data.duplicateCount}</strong>` : ""}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+        ${hasReview ? `<button class="btn btn-ghost btn-sm" onclick="openReviewModal('${data.uploadId}')">Review ${data.needsReviewCount} records</button>` : ""}
+        <button class="btn btn-primary btn-sm" onclick="confirmPublish('${data.uploadId}', ${data.needsReviewCount})">Publish Valid Records</button>
+      </div>
     </div>`;
   } catch(err) {
     msg.innerHTML = `<div class="alert alert-error">❌ ${esc(err.message)}</div>`;
@@ -202,6 +547,7 @@ document.getElementById("uploadForm").addEventListener("submit", async (e) => {
     btn.textContent = "Start Processing PDF →";
   }
 });
+
 
 /* ═══════════════════════════════════════════════════════════ ROLL RULES ═══ */
 async function loadRules() {
@@ -301,29 +647,56 @@ async function loadAnalytics() {
 
     container.innerHTML = `
       <!-- Filters bar -->
-      <div class="card" style="margin-bottom:var(--space-xl);padding:var(--space-md);">
-        <div class="section-heading" style="margin-bottom:12px;">Analytics Filters</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:12px;align-items:end;">
+      <div class="card-box" style="margin-bottom:24px;padding:16px;">
+        <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:12px;">Analytics Filters</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:12px;align-items:end;">
           <div><label class="field-label">Semester</label><select id="anSem" class="field-input" onchange="loadAnalytics()"><option value="">All</option><option value="1-1">1-1</option><option value="1-2">1-2</option><option value="2-1">2-1</option><option value="2-2">2-2</option><option value="3-1">3-1</option><option value="3-2">3-2</option><option value="4-1">4-1</option><option value="4-2">4-2</option></select></div>
           <div><label class="field-label">Regulation</label><select id="anReg" class="field-input" onchange="loadAnalytics()"><option value="">All</option><option value="R23">R23</option><option value="R20">R20</option></select></div>
           <div><label class="field-label">Department</label><input id="anDept" class="field-input" placeholder="e.g. CSE" onchange="loadAnalytics()"/></div>
           <div><label class="field-label">Admission Type</label><select id="anAdmType" class="field-input" onchange="loadAnalytics()"><option value="">All</option><option value="Regular Entry">Regular Entry</option><option value="Lateral Entry">Lateral Entry</option></select></div>
           <div><label class="field-label">Exam Session</label><input id="anSession" class="field-input" placeholder="e.g. April 2026" onchange="loadAnalytics()"/></div>
-          <div><button class="btn btn-ghost btn-sm" onclick="clearAnalyticsFilters()">Reset Filters</button></div>
+          <div><button class="btn btn-ghost btn-sm" onclick="clearAnalyticsFilters()" style="width:100%;">Reset Filters</button></div>
         </div>
       </div>
 
-      <!-- Overview KPIs -->
-      <div class="kpi-grid" style="margin-bottom:var(--space-xl);">
-        <div class="kpi-card accent-blue"><div class="kpi-value">${data.total || 0}</div><div class="kpi-label">Total Student Results</div></div>
-        <div class="kpi-card accent-green"><div class="kpi-value">${fmtPct(data.passPercentage)}</div><div class="kpi-label">Pass Rate (${data.passed}/${data.total})</div></div>
-        <div class="kpi-card accent-gold"><div class="kpi-value">${fmt2(data.averageSgpa)}</div><div class="kpi-label">Average SGPA</div></div>
-        <div class="kpi-card accent-ind"><div class="kpi-value">${data.totalBacklogs || 0}</div><div class="kpi-label">Total Backlogs</div></div>
+      <!-- Redesigned Overview KPIs -->
+      <div class="kpi-row" style="margin-bottom:28px;display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:16px;">
+        <div class="metric-card">
+          <div class="metric-header"><span class="metric-label">Total Student Results</span></div>
+          <div class="metric-value">${data.total || 0}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-header"><span class="metric-label">Pass Rate</span></div>
+          <div class="metric-value" style="color:var(--brand-success);">${fmtPct(data.passPercentage)}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-header"><span class="metric-label">Average SGPA</span></div>
+          <div class="metric-value">${fmt2(data.averageSgpa)}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-header"><span class="metric-label">Total Backlogs</span></div>
+          <div class="metric-value" style="color:var(--brand-danger);">${data.totalBacklogs || 0}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-header"><span class="metric-label">Highest / Lowest SGPA</span></div>
+          <div class="metric-value" style="font-size:1.4rem;">${fmt2(data.highestSgpa)} / ${fmt2(data.lowestSgpa)}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-header"><span class="metric-label">Standing (Imp / Dec)</span></div>
+          <div class="metric-value" style="font-size:1.4rem;">
+            <span style="color:var(--brand-success);">↑${data.improvedCount || 0}</span> / 
+            <span style="color:var(--brand-danger);">↓${data.declinedCount || 0}</span>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-header"><span class="metric-label">Students At Risk</span></div>
+          <div class="metric-value" style="color:var(--brand-warning);">${data.atRiskCount || 0}</div>
+        </div>
       </div>
 
       <!-- Department & Regular vs LE Breakdown -->
-      <div class="card" style="margin-bottom:var(--space-xl);">
-        <div class="section-heading" style="margin-bottom:var(--space-md);">Department &amp; Entry Type Breakdown</div>
+      <div class="card-box" style="margin-bottom:24px;">
+        <div class="card-title">Department &amp; Entry Type Breakdown</div>
         ${(data.deptBreakdown||[]).length === 0 ? '<p class="empty-sub">No department breakdown available.</p>' : `
         <table class="data-table">
           <thead><tr><th>Department</th><th>Admission Type</th><th>Students</th><th>Passed</th><th>Pass Rate</th><th>Avg SGPA</th><th>Backlogs</th></tr></thead>
@@ -340,8 +713,8 @@ async function loadAnalytics() {
       </div>
 
       <!-- Subject Performance & Most Failed Subjects -->
-      <div class="card" style="margin-bottom:var(--space-xl);">
-        <div class="section-heading" style="margin-bottom:var(--space-md);">Subject Performance Analysis</div>
+      <div class="card-box" style="margin-bottom:24px;">
+        <div class="card-title">Subject Performance Analysis</div>
         ${(data.subjectStats||[]).length === 0 ? '<p class="empty-sub">No subject statistics available.</p>' : `
         <table class="data-table">
           <thead><tr><th>Subject Code</th><th>Subject Name</th><th>Total Enrolled</th><th>Passed</th><th>Failed</th><th>Pass Rate</th></tr></thead>
@@ -351,36 +724,36 @@ async function loadAnalytics() {
             <td>${s.total}</td>
             <td><span class="text-success">${s.passed}</span></td>
             <td><span class="${s.failed>0?"text-danger":""}">${s.failed}</span></td>
-            <td><span class="badge ${s.passRate>=75?"badge-success":s.passRate>=50?"badge-warning":"badge-danger"}">${fmtPct(s.passRate)}</span></td>
+            <td><span class="badge ${s.passRate>=75?"badge-pass":s.passRate>=50?"badge-warning":"badge-fail"}">${fmtPct(s.passRate)}</span></td>
           </tr>`).join("")}</tbody>
         </table>`}
       </div>
 
       <!-- Backlog Analysis -->
-      <div class="card" style="margin-bottom:var(--space-xl);">
-        <div class="section-heading" style="margin-bottom:var(--space-md);">Students with Active Backlogs</div>
+      <div class="card-box" style="margin-bottom:24px;">
+        <div class="card-title">Students with Active Backlogs</div>
         ${(data.backlogStudents||[]).length === 0 ? '<p class="empty-sub">🎉 No active backlog records found!</p>' : `
         <table class="data-table">
           <thead><tr><th>Roll Number</th><th>Student Name</th><th>Department</th><th>Semester</th><th>Backlog Count</th><th>Failed Subjects</th></tr></thead>
           <tbody>${data.backlogStudents.map(b=>`<tr>
-            <td><code>${esc(b.rollNumber)}</code></td>
+            <td><button class="btn btn-ghost btn-sm" onclick="openStudentProfile('${b.rollNumber}')" style="padding:2px 6px;"><code>${esc(b.rollNumber)}</code></button></td>
             <td>${esc(b.studentName||"—")}</td>
             <td>${esc(b.department||"—")}</td>
             <td>${esc(b.semester)}</td>
-            <td><span class="badge badge-danger">${b.backlogCount}</span></td>
+            <td><span class="badge badge-fail">${b.backlogCount}</span></td>
             <td>${(b.failedSubjects||[]).map(esc).join(", ")||"—"}</td>
           </tr>`).join("")}</tbody>
         </table>`}
       </div>
 
       <!-- Student Improvement Tracking -->
-      <div class="card">
-        <div class="section-heading" style="margin-bottom:var(--space-md);">Student Semester Improvement Tracking</div>
+      <div class="card-box" style="margin-bottom:24px;">
+        <div class="card-title">Student Semester Improvement Standings</div>
         ${(data.studentImprovement||[]).length === 0 ? '<p class="empty-sub">Improvement comparison will appear when historical semester results exist.</p>' : `
         <table class="data-table">
           <thead><tr><th>Roll Number</th><th>Student Name</th><th>Dept</th><th>Prev Sem (${esc(data.studentImprovement[0]?.prevSem||"")})</th><th>Latest Sem (${esc(data.studentImprovement[0]?.latestSem||"")})</th><th>SGPA Improvement</th></tr></thead>
           <tbody>${data.studentImprovement.map(i=>`<tr>
-            <td><code>${esc(i.rollNumber)}</code></td>
+            <td><button class="btn btn-ghost btn-sm" onclick="openStudentProfile('${i.rollNumber}')" style="padding:2px 6px;"><code>${esc(i.rollNumber)}</code></button></td>
             <td>${esc(i.name||"—")}</td>
             <td>${esc(i.dept||"—")}</td>
             <td>${fmt2(i.prevSgpa)}</td>

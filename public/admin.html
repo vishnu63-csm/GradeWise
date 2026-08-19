@@ -110,19 +110,19 @@
       </div>
 
       <div class="kpi-row" style="margin-bottom:28px;">
-        <div class="metric-card">
+        <div class="metric-card" onclick="switchTab('students')" style="cursor:pointer;">
           <div class="metric-header"><span class="metric-label">Total Students</span></div>
           <div class="metric-value" id="kpiTotalStudents">—</div>
         </div>
-        <div class="metric-card">
+        <div class="metric-card" onclick="switchTab('uploads')" style="cursor:pointer;">
           <div class="metric-header"><span class="metric-label">Published Uploads</span></div>
           <div class="metric-value" id="kpiPublishedUploads">—</div>
         </div>
-        <div class="metric-card">
+        <div class="metric-card" onclick="switchTab('analytics')" style="cursor:pointer;">
           <div class="metric-header"><span class="metric-label">Pass Percentage</span></div>
           <div class="metric-value" id="kpiPassPercentage">—</div>
         </div>
-        <div class="metric-card">
+        <div class="metric-card" onclick="switchTab('analytics')" style="cursor:pointer;">
           <div class="metric-header"><span class="metric-label">Active Backlogs</span></div>
           <div class="metric-value" id="kpiTotalBacklogs">—</div>
         </div>
@@ -303,6 +303,36 @@
     <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:20px;">
       <button class="btn btn-secondary" onclick="closeModal('ruleModal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveRollRule()">Save Rule</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── REVIEW MODAL ──────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="reviewModal">
+  <div class="modal card-box" style="max-width:900px;width:95%;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border-color);padding-bottom:12px;">
+      <h2 class="card-title" style="margin:0;">Review Extracted Results</h2>
+      <button class="icon-btn" onclick="closeModal('reviewModal')">✕</button>
+    </div>
+    <div id="reviewTabs"></div>
+    <div id="reviewModalBody" style="max-height:550px;overflow-y:auto;padding-right:4px;">
+      Loading records...
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:20px;padding-top:12px;border-top:1px solid var(--border-color);">
+      <button class="btn btn-secondary" onclick="closeModal('reviewModal')">Close Review</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── RECORD EDITOR MODAL ────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="recordEditorModal">
+  <div class="modal card-box" style="max-width:800px;width:95%;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border-color);padding-bottom:12px;">
+      <h2 class="card-title" id="recordEditorTitle" style="margin:0;">Review Student Record</h2>
+      <button class="icon-btn" onclick="closeModal('recordEditorModal')">✕</button>
+    </div>
+    <div id="recordEditorBody" style="max-height:550px;overflow-y:auto;padding-right:4px;">
+      Loading student detail...
     </div>
   </div>
 </div>

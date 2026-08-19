@@ -62,6 +62,86 @@ async function classifyRoll(rollNumber) {
   return { department: rule.department, admissionType: rule.admissionType };
 }
 
+// ── Helper: run validations on result ──────────────────────────────────────────
+function runResultValidation(doc) {
+  const reasons = [];
+  const errors = [];
+
+  if (!doc.studentName || doc.studentName.trim().length === 0) {
+    reasons.push("Student name could not be extracted.");
+  }
+  if (!doc.subjects || doc.subjects.length === 0) {
+    reasons.push("No subjects extracted from PDF for this student.");
+  } else {
+    for (const sub of doc.subjects) {
+      if (!sub.code || sub.code.trim().length === 0) {
+        reasons.push(`Subject code could not be detected for subject: ${sub.name || "Unnamed"}`);
+      }
+      if (!sub.grade || sub.grade === "UNKNOWN" || sub.grade === "—") {
+        reasons.push(`Missing grade for subject: ${sub.code || sub.name}`);
+      }
+      if (sub.credits == null || sub.credits === 0) {
+        reasons.push(`Credits missing or zero for subject: ${sub.code || sub.name}`);
+      }
+    }
+  }
+
+  // Recalculate values from subjects
+  if (doc.subjects && doc.subjects.length > 0) {
+    let totalCredits = 0;
+    let totalPoints = 0;
+    let backlogs = 0;
+    const failedSubs = [];
+    
+    for (const s of doc.subjects) {
+      const gp = GRADE_POINTS[s.grade] !== undefined ? GRADE_POINTS[s.grade] : 0;
+      totalCredits += s.credits || 0;
+      totalPoints  += (s.credits || 0) * gp;
+      if (s.grade === "F" || s.grade === "Ab" || !s.passed) {
+        backlogs++;
+        failedSubs.push(s.name || s.code);
+      }
+    }
+    
+    doc.totalCredits  = totalCredits;
+    doc.sgpa          = totalCredits > 0 ? parseFloat((totalPoints / totalCredits).toFixed(2)) : 0;
+    doc.percentage    = (doc.sgpa - 0.75) * 10;
+    doc.backlogCount  = backlogs;
+    doc.failedSubjects = failedSubs;
+    doc.passed        = backlogs === 0;
+  }
+
+  doc.reviewReasons = reasons;
+  doc.extractionErrors = errors;
+
+  if (reasons.length > 0 || errors.length > 0) {
+    doc.validationStatus = "NEEDS_REVIEW";
+    doc.validationNotes = reasons.concat(errors).join(" | ");
+  } else {
+    doc.validationStatus = "VALID";
+    doc.validationNotes = "";
+  }
+}
+
+// ── Helper: recompute upload batch statistics ─────────────────────────────────
+async function recomputeUploadStats(uploadId) {
+  const StudentResult = require("../models/StudentResult");
+  const ResultUpload = require("../models/ResultUpload");
+
+  const results = await StudentResult.find({ uploadId });
+  const totalStudents = results.length;
+  const needsReview = results.filter(r => r.validationStatus === "NEEDS_REVIEW").length;
+  const validStudents = results.filter(r => r.validationStatus === "VALID" || r.validationStatus === "READY_TO_PUBLISH").length;
+  const duplicates = results.filter(r => r.validationStatus === "NEEDS_REVIEW" && r.validationNotes.includes("duplicate")).length;
+
+  await ResultUpload.findByIdAndUpdate(uploadId, {
+    totalStudents,
+    validStudents,
+    needsReviewCount: needsReview,
+    duplicateCount: duplicates
+  });
+}
+
 // ── POST /api/admin/login ─────────────────────────────────────────────────────
 router.post("/login", async (req, res) => {
   try {
@@ -169,20 +249,7 @@ router.post("/upload-pdf", upload.single("pdf"), async (req, res) => {
         isPublished: true,
       });
 
-      let valStatus  = s.validationStatus || "VALID";
-      let valNotes   = s.validationNotes  || "";
-
-      if (existing) {
-        dupCount++;
-        valStatus = "NEEDS_REVIEW";
-        valNotes  = (valNotes ? valNotes + " " : "") +
-          `Possible duplicate: a published result already exists for this semester/session.`;
-      }
-
-      if (valStatus === "NEEDS_REVIEW") needsReview++;
-      else validCount++;
-
-      studentDocs.push({
+      const sDoc = {
         uploadId:      uploadDoc._id,
         rollNumber:    s.rollNumber,
         studentName:   s.studentName || "",
@@ -193,17 +260,27 @@ router.post("/upload-pdf", upload.single("pdf"), async (req, res) => {
         academicYear:  s.academicYear || academicYear || "",
         examSession:   s.examSession  || examSession  || "",
         examType:      s.examType     || examType     || "Regular",
-        sgpa:          s.sgpa         || 0,
-        percentage:    s.percentage   || 0,
-        totalCredits:  s.totalCredits || 0,
-        passed:        s.passed       ?? true,
-        backlogCount:  s.backlogCount || 0,
-        failedSubjects: s.failedSubjects || [],
         subjects:      s.subjects     || [],
-        validationStatus: valStatus,
-        validationNotes:  valNotes,
         isPublished:   false,
-      });
+      };
+
+      // Run validation
+      runResultValidation(sDoc);
+
+      if (existing) {
+        dupCount++;
+        sDoc.validationStatus = "NEEDS_REVIEW";
+        sDoc.reviewReasons.push("Possible duplicate: a published result already exists for this semester/session.");
+        sDoc.validationNotes = sDoc.reviewReasons.join(" | ");
+      }
+
+      if (sDoc.validationStatus === "NEEDS_REVIEW") {
+        needsReview++;
+      } else {
+        validCount++;
+      }
+
+      studentDocs.push(sDoc);
     }
 
     // Bulk insert student results
@@ -264,6 +341,18 @@ router.get("/uploads", async (req, res) => {
   }
 });
 
+// ── GET /api/admin/results/:resultId ─────────────────────────────────────────
+// Fetch a single student result by _id (for the record editor)
+router.get("/results/:resultId", async (req, res) => {
+  try {
+    const result = await StudentResult.findById(req.params.resultId).lean();
+    if (!result) return res.status(404).json({ error: "Result not found." });
+    res.json({ result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── GET /api/admin/upload/:id ─────────────────────────────────────────────────
 router.get("/upload/:id", async (req, res) => {
   try {
@@ -298,29 +387,60 @@ router.put("/upload/:id/result/:resultId", async (req, res) => {
     if (result.isPublished) return res.status(400).json({ error: "Cannot edit a published result." });
 
     if (studentName !== undefined) result.studentName = studentName;
-    if (validationStatus) result.validationStatus = validationStatus;
+    if (Array.isArray(subjects)) {
+      result.subjects = subjects.map(s => ({
+        ...s,
+        gradePoint: GRADE_POINTS[s.grade] !== undefined ? GRADE_POINTS[s.grade] : 0,
+        passed: s.grade !== "F" && s.grade !== "Ab",
+      }));
+    }
 
-    if (Array.isArray(subjects) && subjects.length > 0) {
-      result.subjects = subjects;
-      // Recalculate SGPA
-      let totalCredits = 0, totalPoints = 0, backlogs = 0;
-      const failedSubs = [];
-      for (const s of subjects) {
-        const gp = GRADE_POINTS[s.grade] !== undefined ? GRADE_POINTS[s.grade] : 0;
-        totalCredits += s.credits || 0;
-        totalPoints  += (s.credits || 0) * gp;
-        if (!s.passed) { backlogs++; failedSubs.push(s.name); }
-      }
-      result.totalCredits  = totalCredits;
-      result.sgpa          = totalCredits > 0 ? totalPoints / totalCredits : 0;
-      result.percentage    = (result.sgpa - 0.75) * 10;
-      result.backlogCount  = backlogs;
-      result.failedSubjects = failedSubs;
-      result.passed        = backlogs === 0;
+    // Run validation & recalculation
+    runResultValidation(result);
+
+    // If explicit status was sent
+    if (validationStatus) {
+      result.validationStatus = validationStatus;
     }
 
     await result.save();
+
+    // Recompute upload stats
+    await recomputeUploadStats(req.params.id);
+
     res.json({ message: "Result updated.", result: result.toObject() });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── POST /api/admin/results/:resultId/verify ──────────────────────────────────
+// Re-validate a single result after admin edits
+router.post("/results/:resultId/verify", async (req, res) => {
+  try {
+    const result = await StudentResult.findById(req.params.resultId);
+    if (!result) return res.status(404).json({ error: "Result not found." });
+    if (result.isPublished) return res.status(400).json({ error: "Cannot re-verify a published result." });
+
+    runResultValidation(result);
+
+    if (result.reviewReasons.length === 0 && result.extractionErrors.length === 0) {
+      result.validationStatus = "VALID";
+      result.isVerified  = true;
+      result.reviewedBy  = req.admin.username || "Admin";
+      result.reviewedAt  = new Date();
+    }
+
+    await result.save();
+    await recomputeUploadStats(result.uploadId);
+
+    res.json({
+      message: result.validationStatus === "VALID"
+        ? "Record verified and marked VALID — ready to publish."
+        : "Record still has issues. Please correct and try again.",
+      validationStatus: result.validationStatus,
+      reviewReasons: result.reviewReasons,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -637,6 +757,27 @@ router.get("/analytics", async (req, res) => {
       { $limit: 10 }
     ]);
 
+    const atRiskCount = await StudentResult.countDocuments({
+      ...match,
+      $or: [{ backlogCount: { $gte: 3 } }, { sgpa: { $lt: 5.0 } }]
+    });
+
+    const improvementStats = await StudentResult.aggregate([
+      { $match: { isPublished: true } },
+      { $sort: { rollNumber: 1, semester: 1 } },
+      { $group: {
+        _id: "$rollNumber",
+        semesters: { $push: "$sgpa" }
+      }},
+      { $match: { "semesters.1": { $exists: true } } },
+      { $project: {
+        change: { $subtract: [{ $arrayElemAt: ["$semesters", -1] }, { $arrayElemAt: ["$semesters", -2] }] }
+      }}
+    ]);
+
+    const improvedCount = improvementStats.filter(i => i.change > 0).length;
+    const declinedCount = improvementStats.filter(i => i.change < 0).length;
+
     const s = stats[0] || {};
     res.json({
       total:            s.total || 0,
@@ -647,6 +788,9 @@ router.get("/analytics", async (req, res) => {
       highestSgpa:      s.maxSgpa || 0,
       lowestSgpa:       s.minSgpa || 0,
       totalBacklogs:    s.totalBacklogs || 0,
+      atRiskCount,
+      improvedCount,
+      declinedCount,
       deptBreakdown,
       subjectStats,
       topStudents,

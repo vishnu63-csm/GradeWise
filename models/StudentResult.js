@@ -80,11 +80,16 @@ const StudentResultSchema = new mongoose.Schema(
     // Validation state (used before publishing)
     validationStatus: {
       type: String,
-      enum: ["VALID", "NEEDS_REVIEW", "INVALID"],
+      enum: ["VALID", "NEEDS_REVIEW", "INVALID", "READY_TO_PUBLISH"],
       default: "VALID",
       index: true,
     },
     validationNotes: { type: String, default: "" },
+    reviewReasons:    { type: [String], default: [] },
+    extractionErrors: { type: [String], default: [] },
+    isVerified:       { type: Boolean, default: false },
+    reviewedBy:       { type: String, default: null },
+    reviewedAt:       { type: Date, default: null },
 
     // Published flag (controlled by upload status)
     isPublished: { type: Boolean, default: false, index: true },
