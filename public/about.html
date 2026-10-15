@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>About GradeWise — Student-Focused Grade Management</title>
+<meta name="description" content="B.Tech students often maintain semester results across PDFs, screenshots, spreadsheets and notes. GradeWise brings those academic records into one structured view."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="auth.css"/>
+<style>
+  .header-nav a.active { color: var(--blue); font-weight: 600; }
+  .header-nav a.active::after { content: ""; position: absolute; bottom: -2px; left: 0; right: 0; height: 2px; background: var(--blue); border-radius: 99px; }
+  
+  .about-container { max-width: 900px; margin: 0 auto; padding: 64px 24px 96px; }
+  .about-section { margin-bottom: 48px; }
+  .about-section h2 {
+    font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; color: var(--text); margin-bottom: 14px;
+  }
+  .about-section p {
+    color: var(--text-muted); font-size: 1rem; line-height: 1.7; margin-bottom: 14px;
+  }
+
+  .principle-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 24px;
+  }
+  @media (max-width: 768px) { .principle-grid { grid-template-columns: 1fr; } }
+  
+  .principle-card {
+    background: #FFFFFF; border: 1px solid var(--border); border-radius: 12px; padding: 28px 24px;
+    text-align: left; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.02);
+  }
+  .principle-title {
+    font-family: var(--font-display); font-size: 1.25rem; font-weight: 700; color: var(--blue); margin-bottom: 8px;
+  }
+  .principle-desc {
+    color: var(--text-muted); font-size: 14px; line-height: 1.6; margin: 0;
+  }
+</style>
+</head>
+<body>
+
+  <!-- ── HEADER ────────────────────────────────────────────────────────────── -->
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="/" style="text-decoration:none;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:1.4rem;">🎓</span>
+        <span style="font-family:var(--font-display);font-size:1.3rem;font-weight:700;color:var(--text);">GradeWise</span>
+      </a>
+
+      <nav class="header-nav" id="headerNav">
+        <a href="/">Home</a>
+        <a href="/how-it-works">How It Works</a>
+        <a href="/help">Help</a>
+        <a href="/about" class="active">About</a>
+      </nav>
+
+      <div class="header-actions">
+        <a href="/login" class="btn-saas-secondary" style="padding:7px 14px;font-size:13.5px;">Sign In</a>
+        <a href="/signup" class="btn-saas-primary" style="padding:7px 16px;font-size:13.5px;">Get Started</a>
+        <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Toggle menu">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── CONTENT ───────────────────────────────────────────────────────────── -->
+  <main class="about-container">
+    
+    <!-- Hero / Product Story Header -->
+    <div style="margin-bottom:56px;">
+      <div style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">PRODUCT STORY</div>
+      <h1 style="font-family:var(--font-display);font-size:2.6rem;font-weight:800;color:var(--text);margin-bottom:16px;">
+        Built around a simple problem.
+      </h1>
+      <p style="font-size:1.15rem;color:var(--text-muted);line-height:1.6;">
+        B.Tech students often maintain semester results across PDFs, screenshots, spreadsheets and notes. GradeWise brings those academic records into one structured view.
+      </p>
+    </div>
+
+    <!-- Section 1: What GradeWise does -->
+    <section class="about-section">
+      <h2>What GradeWise Does</h2>
+      <p>
+        GradeWise provides a dedicated application where engineering students can store their semester results, compute exact credit-weighted Semester Grade Point Averages (SGPA), and monitor Cumulative Grade Point Averages (CGPA) throughout their degree.
+      </p>
+      <p>
+        By organizing semester history in a persistent digital dashboard, students eliminate manual calculation errors and always know their current standing.
+      </p>
+    </section>
+
+    <!-- Section 2: Designed for B.Tech students -->
+    <section class="about-section">
+      <h2>Designed for B.Tech Students</h2>
+      <p>
+        B.Tech degree programs involve complex credit structures across multiple semesters, including lab credits, theory credits, elective weightings, and lateral entry rules.
+      </p>
+      <p>
+        GradeWise supports semester-wise subject codes, credits, letter grades, and backlog tracking under university regulations such as JNTUK R23, giving students full clarity over passed credits and overall degree progress.
+      </p>
+    </section>
+
+    <!-- Section 3: Built around three principles -->
+    <section class="about-section">
+      <h2>Built Around Three Principles</h2>
+      <p>Our product architecture is governed by three fundamental principles:</p>
+
+      <div class="principle-grid">
+        <div class="principle-card">
+          <div class="principle-title">Clarity</div>
+          <p class="principle-desc">
+            Academic performance should be easy to understand with structured tables and trend curves.
+          </p>
+        </div>
+
+        <div class="principle-card">
+          <div class="principle-title">Accuracy</div>
+          <p class="principle-desc">
+            Calculations should follow the defined university grading and credit-weighting structure.
+          </p>
+        </div>
+
+        <div class="principle-card">
+          <div class="principle-title">Privacy</div>
+          <p class="principle-desc">
+            Student academic information should be handled securely with authenticated access scoping.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Clear Connection CTA -->
+    <div style="margin-top:64px;background:#0F172A;color:#FFFFFF;border-radius:16px;padding:48px 24px;text-align:center;">
+      <h3 style="font-family:var(--font-display);font-size:1.7rem;font-weight:700;margin-bottom:8px;">Start using GradeWise</h3>
+      <p style="color:#94A3B8;font-size:1rem;margin-bottom:28px;">Organize your semester grades and track your B.Tech performance today.</p>
+      <a href="/signup" class="btn-saas-primary" style="padding:12px 32px;font-size:15px;background:#FFFFFF;color:#0F172A;">Start using GradeWise →</a>
+    </div>
+
+  </main>
+
+  <!-- ── FOOTER ────────────────────────────────────────────────────────────── -->
+  <footer class="site-footer">
+    <div class="footer-inner" style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:32px;">
+      <div>
+        <div style="font-family:var(--font-display);font-weight:700;color:var(--text);font-size:1.2rem;margin-bottom:8px;display:flex;align-items:center;gap:8px;">
+          🎓 GradeWise
+        </div>
+        <p style="color:var(--text-muted);font-size:13.5px;max-width:280px;line-height:1.5;">
+          Academic performance tracking, made simple.
+        </p>
+      </div>
+
+      <div>
+        <div style="font-weight:700;color:var(--text);font-size:13px;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.04em;">Product</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13.5px;">
+          <a href="/" style="color:var(--text-muted);text-decoration:none;">Home</a>
+          <a href="/how-it-works" style="color:var(--text-muted);text-decoration:none;">How It Works</a>
+          <a href="/help" style="color:var(--text-muted);text-decoration:none;">Help</a>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-weight:700;color:var(--text);font-size:13px;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.04em;">Company</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13.5px;">
+          <a href="/about" style="color:var(--text-muted);text-decoration:none;">About</a>
+          <a href="/help#support" style="color:var(--text-muted);text-decoration:none;">Feedback</a>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-weight:700;color:var(--text);font-size:13px;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.04em;">Legal</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13.5px;">
+          <a href="/privacy" style="color:var(--text-muted);text-decoration:none;">Privacy</a>
+          <a href="/terms" style="color:var(--text-muted);text-decoration:none;">Terms</a>
+        </div>
+      </div>
+    </div>
+
+    <div style="max-width:1200px;margin:32px auto 0;padding-top:20px;border-top:1px solid var(--border);font-size:13px;color:var(--text-subtle);text-align:center;">
+      © 2026 GradeWise. All rights reserved.
+    </div>
+  </footer>
+
+<script>
+  document.getElementById("mobileMenuBtn")?.addEventListener("click", () => {
+    document.getElementById("headerNav")?.classList.toggle("active");
+  });
+</script>
+</body>
+</html>

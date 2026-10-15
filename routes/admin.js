@@ -35,8 +35,24 @@ const Admin         = require("../models/Admin");
 const ResultUpload  = require("../models/ResultUpload");
 const StudentResult = require("../models/StudentResult");
 const RollNumberRule = require("../models/RollNumberRule");
+const AuditLog      = require("../models/AuditLog");
+const Feedback      = require("../models/Feedback");
 const adminAuth     = require("../middleware/adminAuth");
 const { parseResultPdf } = require("../utils/pdfParser");
+
+async function logAudit(action, adminUsername, details, uploadId = null, targetRollNumber = null) {
+  try {
+    await AuditLog.create({
+      action,
+      adminUsername: adminUsername || "Admin",
+      details: details || "",
+      uploadId,
+      targetRollNumber,
+    });
+  } catch (err) {
+    console.error("[AuditLog error]", err.message);
+  }
+}
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -210,6 +226,8 @@ router.post("/upload-pdf", upload.single("pdf"), async (req, res) => {
       status: "PROCESSING",
     });
     await uploadDoc.save();
+
+    await logAudit("UPLOAD_PDF", req.admin?.username, `Uploaded PDF file for ${semester} (${regulation})`, uploadDoc._id);
 
     // Parse PDF
     const parsed = await parseResultPdf(buffer, { semester, regulation, academicYear, examSession, examType });
@@ -504,6 +522,7 @@ router.post("/upload/:id/publish", async (req, res) => {
     await uploadDoc.save({ session });
 
     await session.commitTransaction();
+    await logAudit("PUBLISH_RESULTS", req.admin?.username, `Published ${updateResult.modifiedCount} records`, uploadDoc._id);
     res.json({
       message:        `Published ${updateResult.modifiedCount} results successfully.`,
       publishedCount: updateResult.modifiedCount,
@@ -905,6 +924,129 @@ router.get("/result-history", async (req, res) => {
   try {
     const uploads = await ResultUpload.find({}).sort({ createdAt: -1 }).lean();
     res.json(uploads);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/admin/audit-logs ────────────────────────────────────────────────
+router.get("/audit-logs", async (req, res) => {
+  try {
+    const { limit = 50 } = req.query;
+    const logs = await AuditLog.find({})
+      .sort({ createdAt: -1 })
+      .limit(Number(limit))
+      .lean();
+    res.json({ logs, total: logs.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/admin/feedback ──────────────────────────────────────────────────
+router.get("/feedback", async (req, res) => {
+  try {
+    const { limit = 100 } = req.query;
+    const items = await Feedback.find({})
+      .sort({ createdAt: -1 })
+      .limit(Number(limit))
+      .lean();
+    res.json({ items, total: items.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── POST /api/admin/student/update-grade ─────────────────────────────────────
+// Admin updates a student subject grade / clears backlog
+router.post("/student/update-grade", async (req, res) => {
+  try {
+    const { rollNumber, semester, subject, newGrade } = req.body;
+    if (!rollNumber || !semester || !subject || !newGrade) {
+      return res.status(400).json({ error: "rollNumber, semester, subject, and newGrade are required." });
+    }
+
+    const validGrades = ["S", "A", "B", "C", "D", "E", "F", "Ab"];
+    const formattedGrade = String(newGrade).trim();
+    if (!validGrades.includes(formattedGrade)) {
+      return res.status(400).json({ error: `Invalid grade: ${newGrade}. Must be one of S, A, B, C, D, E, F, Ab.` });
+    }
+
+    const Student = require("../models/Student");
+    const student = await Student.findOne({ rollNumber: String(rollNumber).trim().toUpperCase() });
+    if (!student) {
+      return res.status(404).json({ error: `Student with roll number ${rollNumber} not found.` });
+    }
+
+    const semRecord = student.semesters.find((s) => s.semester === semester);
+    if (!semRecord) {
+      return res.status(404).json({ error: `Semester ${semester} not found for student ${rollNumber}.` });
+    }
+
+    const targetSub = semRecord.subjects.find(
+      (s) => s.subject.toLowerCase() === String(subject).trim().toLowerCase() ||
+             (s.code && s.code.toLowerCase() === String(subject).trim().toLowerCase())
+    );
+
+    if (!targetSub) {
+      return res.status(404).json({ error: `Subject '${subject}' not found in semester ${semester}.` });
+    }
+
+    const previousGrade = targetSub.grade;
+    const previousGradePoint = GRADE_POINTS[previousGrade] !== undefined ? GRADE_POINTS[previousGrade] : 0;
+    const newGradePoint = GRADE_POINTS[formattedGrade];
+
+    targetSub.grade = formattedGrade;
+    targetSub.gradePoint = newGradePoint;
+
+    if (!targetSub.history) targetSub.history = [];
+    targetSub.history.push({
+      previousGrade,
+      previousGradePoint,
+      newGrade: formattedGrade,
+      newGradePoint,
+      updatedAt: new Date(),
+      updatedBy: req.admin ? req.admin.username : "Admin",
+    });
+
+    if (!student.gradeHistory) student.gradeHistory = [];
+    student.gradeHistory.push({
+      semester,
+      subjectCode: targetSub.code || "",
+      subjectName: targetSub.subject,
+      previousGrade,
+      previousGradePoint,
+      newGrade: formattedGrade,
+      newGradePoint,
+      attemptDate: new Date(),
+      updatedBy: req.admin ? req.admin.username : "Admin",
+    });
+
+    // Recalculate semester SGPA & credits
+    let totalCredits = 0, totalPoints = 0;
+    for (const sub of semRecord.subjects) {
+      const gp = GRADE_POINTS[sub.grade] || 0;
+      totalCredits += Number(sub.credits);
+      totalPoints += Number(sub.credits) * gp;
+    }
+    semRecord.sgpa = totalCredits > 0 ? totalPoints / totalCredits : 0;
+    semRecord.credits = totalCredits;
+
+    await student.save();
+
+    await logAudit(
+      "CLEAR_BACKLOG_UPDATE_GRADE",
+      req.admin ? req.admin.username : "Admin",
+      `Updated grade for ${subject} (${semester}) from ${previousGrade} to ${formattedGrade} for student ${rollNumber}`,
+      null,
+      rollNumber
+    );
+
+    res.json({
+      success: true,
+      message: `Grade updated for student ${rollNumber}.`,
+      student: student.toObject(),
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -1,5 +1,15 @@
 const jwt = require("jsonwebtoken");
-const JWT_SECRET = process.env.JWT_SECRET || "sgpa_jwt_secret_key_2024";
+
+function getJwtSecret() {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("CRITICAL: JWT_SECRET environment variable is missing in production!");
+    }
+    return "sgpa_jwt_secret_key_2024";
+  }
+  return secret;
+}
 
 module.exports = function adminAuthMiddleware(req, res, next) {
   const header = req.headers["authorization"] || "";
@@ -8,7 +18,7 @@ module.exports = function adminAuthMiddleware(req, res, next) {
     return res.status(401).json({ error: "Admin access required. Please log in as admin." });
   }
   try {
-    const payload = jwt.verify(token, JWT_SECRET);
+    const payload = jwt.verify(token, getJwtSecret());
     if (!payload.isAdmin) {
       return res.status(403).json({ error: "Access denied. Admin privileges required." });
     }

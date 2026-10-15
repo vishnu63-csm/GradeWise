@@ -162,6 +162,12 @@ async function loadHome() {
     const latestSem = sems.length > 0 ? sems[sems.length - 1] : null;
     const backlogs  = sems.reduce((acc, s) => acc + (s.subjects || []).filter(sub => sub.grade === "F" || sub.grade === "Ab").length, 0);
 
+    // Onboarding Banner visibility
+    const onboardingBanner = document.getElementById("onboardingBanner");
+    if (onboardingBanner) {
+      onboardingBanner.style.display = sems.length === 0 ? "block" : "none";
+    }
+
     // Dynamic CGPA comparison trend calculation
     let cgpaTrendText = "Cumulative Index";
     if (sems.length > 1 && cgpa) {
@@ -686,7 +692,7 @@ function gradeClass(g) {
   return map[g] || "grade-Ab";
 }
 
-function buildSubjectRows(subjects, expanded) {
+function buildSubjectRows(subjects, expanded, semSemester = "") {
   if (!subjects || subjects.length === 0) {
     return `<div style="font-size:13px;color:var(--text-muted);padding:10px 0;font-style:italic;">No subject-wise data available for this semester.</div>`;
   }
@@ -697,15 +703,32 @@ function buildSubjectRows(subjects, expanded) {
     const grade = sub.grade || "—";
     const isFail = (grade === "F" || grade === "Ab");
     const credits = sub.credits || 0;
+    const rawSubName = sub.subject || sub.name || "Subject";
+    const rawSubCode = sub.code || "";
+
+    const updateAction = `onclick="openUpdateGradeModal('${esc(semSemester)}', '${esc(rawSubName)}', '${esc(rawSubCode)}', ${credits}, '${esc(grade)}')"`;
+    const updateBtn = isFail ? `
+      <button class="btn btn-secondary btn-sm" style="font-size:11px;padding:3px 9px;margin-left:6px;background:var(--accent-rose-bg);color:var(--brand-danger);border-color:rgba(225,29,72,0.3);font-weight:700;cursor:pointer;" 
+              ${updateAction}
+              title="Clear backlog / update grade">
+        Update Grade
+      </button>` : `
+      <button class="btn btn-secondary btn-sm" style="font-size:10px;padding:2px 7px;margin-left:4px;opacity:0.8;cursor:pointer;" 
+              ${updateAction}
+              title="Update grade">
+        Edit
+      </button>`;
+
     return `
-      <div class="sem-subject-row${isFail ? " failed-row" : ""}" style="animation-delay: ${sIdx * 45}ms;">
+      <div class="sem-subject-row${isFail ? " failed-row" : ""}" style="animation-delay: ${sIdx * 45}ms;display:flex;align-items:center;justify-content:space-between;">
         <div style="flex:1;min-width:0;">
           <div class="sem-subject-name" title="${name}">${name}</div>
           ${code}
         </div>
-        <div class="sem-subject-right">
+        <div class="sem-subject-right" style="display:flex;align-items:center;gap:6px;">
           <span class="sem-credit-pill">${credits} Cr</span>
           <span class="grade-badge ${gradeClass(grade)}">${esc(grade)}</span>
+          ${semSemester ? updateBtn : ""}
         </div>
       </div>`;
   }).join("");
@@ -764,7 +787,7 @@ function buildSemCard(sem, pubResult, idx) {
 
       ${totalSubjects > 0 ? `<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:8px;">Subject Performance</div>` : ""}
       <div class="sem-subjects-list" id="subj-list-${idx}">
-        ${buildSubjectRows(subjects, false)}
+        ${buildSubjectRows(subjects, false, sem.semester)}
       </div>
 
       <div class="sem-card-footer">
@@ -1080,6 +1103,140 @@ function showAddSemError(msg) {
   }
 }
 
+async function handleFeedbackSubmit(e) {
+  e.preventDefault();
+  const category = document.getElementById("fbCategory").value;
+  const subject = document.getElementById("fbSubject").value.trim();
+  const message = document.getElementById("fbMessage").value.trim();
+  const alertEl = document.getElementById("fbAlert");
+  const saveBtn = document.getElementById("saveFeedbackBtn");
+
+  if (!subject || !message) {
+    if (alertEl) {
+      alertEl.textContent = "Subject and message are required.";
+      alertEl.className = "alert alert-error";
+      alertEl.style.display = "block";
+    }
+    return;
+  }
+
+  try {
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = "Sending..."; }
+    await apiFetch("/api/feedback", {
+      method: "POST",
+      body: JSON.stringify({ category, subject, message }),
+    });
+
+    if (alertEl) {
+      alertEl.textContent = "Thank you! Your feedback has been submitted successfully.";
+      alertEl.className = "alert alert-success";
+      alertEl.style.display = "block";
+    }
+    document.getElementById("feedbackForm")?.reset();
+    setTimeout(() => {
+      closeModal("feedbackModal");
+      if (alertEl) alertEl.style.display = "none";
+    }, 1500);
+  } catch (err) {
+    if (alertEl) {
+      alertEl.textContent = err.message || "Failed to submit feedback.";
+      alertEl.className = "alert alert-error";
+      alertEl.style.display = "block";
+    }
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = "Send Feedback"; }
+  }
+}
+
+/* ════════════════════════════════════════ UPDATE GRADE & BACKLOG CLEARANCE ═══ */
+const GRADE_POINTS_MAP = { S: 10, A: 9, B: 8, C: 7, D: 6, E: 5, F: 0, Ab: 0 };
+
+function onUgGradeSelectChange(val) {
+  const pts = GRADE_POINTS_MAP[val] !== undefined ? GRADE_POINTS_MAP[val] : 0;
+  const disp = document.getElementById("ugNewGradePointDisplay");
+  if (disp) {
+    disp.textContent = `${pts} Grade Point${pts === 1 ? '' : 's'}`;
+  }
+}
+window.onUgGradeSelectChange = onUgGradeSelectChange;
+
+function openUpdateGradeModal(semester, subjectName, subjectCode, credits, prevGrade) {
+  document.getElementById("ugSemester").value = semester || "";
+  document.getElementById("ugSubject").value = subjectName || "";
+
+  const subTitle = document.getElementById("ugSemSubtitle");
+  if (subTitle) subTitle.textContent = `${semester || "Semester"} Record`;
+
+  const nameEl = document.getElementById("ugSubjectName");
+  if (nameEl) nameEl.textContent = subjectName || "Subject";
+
+  const codeEl = document.getElementById("ugSubjectCode");
+  if (codeEl) codeEl.textContent = subjectCode ? `Code: ${subjectCode}` : "General Subject";
+
+  const credEl = document.getElementById("ugCredits");
+  if (credEl) credEl.textContent = `${credits || 0} Cr`;
+
+  const prevGradeEl = document.getElementById("ugPrevGrade");
+  if (prevGradeEl) prevGradeEl.textContent = prevGrade || "F";
+
+  const prevPts = GRADE_POINTS_MAP[prevGrade] !== undefined ? GRADE_POINTS_MAP[prevGrade] : 0;
+  const prevPtsEl = document.getElementById("ugPrevGradePoint");
+  if (prevPtsEl) prevPtsEl.textContent = prevPts;
+
+  const sel = document.getElementById("ugNewGrade");
+  if (sel) {
+    sel.value = (prevGrade === "F" || prevGrade === "Ab") ? "B" : "S";
+    onUgGradeSelectChange(sel.value);
+  }
+
+  const alertEl = document.getElementById("ugAlert");
+  if (alertEl) alertEl.style.display = "none";
+
+  openModal("updateGradeModal");
+}
+window.openUpdateGradeModal = openUpdateGradeModal;
+
+async function handleUpdateGradeSubmit(e) {
+  e.preventDefault();
+  const semester = document.getElementById("ugSemester").value;
+  const subject = document.getElementById("ugSubject").value;
+  const newGrade = document.getElementById("ugNewGrade").value;
+  const alertEl = document.getElementById("ugAlert");
+  const submitBtn = document.getElementById("ugSubmitBtn");
+
+  try {
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Saving & Recalculating..."; }
+
+    const resData = await apiFetch("/api/student/semester/update-grade", {
+      method: "POST",
+      body: JSON.stringify({ semester, subject, newGrade }),
+    });
+
+    if (resData.student) {
+      studentData = resData.student;
+    } else {
+      studentData = await apiFetch("/api/student");
+    }
+
+    renderSgpa();
+    await loadHome();
+    if (document.getElementById("tab-cgpa")?.classList.contains("active")) {
+      renderCgpa();
+    }
+
+    closeModal("updateGradeModal");
+    alert(`🎉 Backlog cleared successfully! ${semester} SGPA recalculated to ${resData.sgpa.toFixed(2)}. Overall CGPA updated to ${resData.cgpa ? resData.cgpa.toFixed(2) : "N/A"}.`);
+  } catch (err) {
+    if (alertEl) {
+      alertEl.textContent = err.message || "Failed to update grade.";
+      alertEl.className = "alert alert-error";
+      alertEl.style.display = "block";
+    }
+  } finally {
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "Save & Recalculate"; }
+  }
+}
+
 /* ════════════════════════════════════════════════════════════════ INIT ═══ */
 document.addEventListener("DOMContentLoaded", async () => {
   if (!guardAuth()) return;
@@ -1103,6 +1260,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Add Semester button & form bindings
   document.getElementById("addSemBtn")?.addEventListener("click", openAddSemesterModal);
   document.getElementById("addSemesterForm")?.addEventListener("submit", handleAddSemesterSubmit);
+
+  // Update Grade form binding
+  document.getElementById("updateGradeForm")?.addEventListener("submit", handleUpdateGradeSubmit);
+
+  // Feedback form binding
+  document.getElementById("feedbackForm")?.addEventListener("submit", handleFeedbackSubmit);
 
   // Hash change routing for browser back/forward buttons
   window.addEventListener("hashchange", handleHashRoute);

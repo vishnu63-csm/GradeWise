@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GradeWise — B.Tech SGPA, CGPA & AI Study Assistant</title>
+<meta name="description" content="GradeWise helps B.Tech students calculate SGPA, track semester performance, and study engineering concepts with GradeWise AI."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="auth.css"/>
+<link rel="stylesheet" href="ai-widget.css"/>
+<style>
+  /* Page Specific Interactive Styles */
+  .header-nav a.active { color: var(--blue); font-weight: 600; }
+  
+  .demo-tab-btn {
+    background: #F1F5F9;
+    border: 1px solid #CBD5E1;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .demo-tab-btn.active {
+    background: #0F172A;
+    color: #FFFFFF;
+    border-color: #0F172A;
+  }
+
+  .sem-tab-btn {
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    color: #64748B;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .sem-tab-btn.active {
+    background: #2563EB;
+    color: #FFFFFF;
+    border-color: #2563EB;
+  }
+
+  /* SVG Trend Curve Animation */
+  #trendPolyline {
+    stroke-dasharray: 300;
+    stroke-dashoffset: 300;
+    transition: stroke-dashoffset 1.5s ease-in-out;
+  }
+  #trendPolyline.draw {
+    stroke-dashoffset: 0;
+  }
+
+  /* SVG Tooltip */
+  .svg-point {
+    cursor: pointer;
+    transition: transform 0.2s ease;
+  }
+  .svg-point:hover {
+    transform: scale(1.4);
+    transform-origin: center;
+  }
+</style>
+</head>
+<body>
+
+  <!-- ── 1. HEADER ──────────────────────────────────────────────────────────── -->
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="/" style="text-decoration:none;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:1.4rem;">🎓</span>
+        <span style="font-family:var(--font-display);font-size:1.3rem;font-weight:700;color:var(--text);">GradeWise</span>
+      </a>
+
+      <nav class="header-nav" id="headerNav">
+        <a href="/" class="active">Home</a>
+        <a href="/how-it-works">How It Works</a>
+        <a href="/help">Help</a>
+        <a href="/about">About</a>
+      </nav>
+
+      <div class="header-actions">
+        <a href="/login" class="btn-saas-secondary" style="padding:7px 14px;font-size:13.5px;">Sign In</a>
+        <a href="/signup" class="btn-saas-primary" style="padding:7px 16px;font-size:13.5px;">Get Started</a>
+        <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Toggle menu">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── 2. HERO (LINE-BY-LINE REVEAL) ────────────────────────────────────── -->
+  <section class="hero-wrapper">
+    <div class="hero-badge hero-badge-animate">Designed for B.Tech students · JNTUK R23 Curriculum</div>
+    
+    <h1 class="hero-h1">
+      <span class="hero-line-1" style="display:block;">Know your grades.</span>
+      <span class="hero-line-2" style="display:block;">Plan your progress.</span>
+      <span class="hero-line-3" style="display:block;color:var(--blue);">Learn with AI.</span>
+    </h1>
+    
+    <p class="hero-subtext hero-subtext-animate">
+      GradeWise helps B.Tech students calculate credit-weighted SGPA, track multi-semester performance, and study engineering concepts with an AI academic assistant.
+    </p>
+    
+    <div class="hero-cta-group hero-cta-animate">
+      <a href="/signup" class="btn-saas-primary" style="padding:12px 28px;font-size:15px;">Get Started Free</a>
+      <a href="/how-it-works" class="btn-saas-secondary" style="padding:12px 24px;font-size:15px;">See How It Works</a>
+    </div>
+  </section>
+
+  <!-- ── 3. PRODUCT DASHBOARD PREVIEW (WITH ANIMATED COUNTERS & SVG DRAW) ───── -->
+  <div class="preview-container dashboard-reveal-animate">
+    <div class="dashboard-mockup" id="dashboardMockup">
+      <div class="mockup-header">
+        <div class="mockup-dots">
+          <div class="mockup-dot"></div>
+          <div class="mockup-dot"></div>
+          <div class="mockup-dot"></div>
+        </div>
+        <div class="mockup-title">GradeWise — B.Tech Academic Dashboard Preview (Sample Data)</div>
+        <div style="font-size:11px;color:var(--text-subtle);font-weight:600;font-family:var(--font-mono);">JNTUK R23</div>
+      </div>
+
+      <!-- Illustrative Dashboard Data -->
+      <div style="padding:28px;background:#F8FAFC;">
+        
+        <!-- Header row -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid #E2E8F0;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div style="font-family:var(--font-display);font-size:1.15rem;font-weight:700;color:#0F172A;">B.Tech Computer Science & Engineering</div>
+            <div style="font-size:12.5px;color:#64748B;">Roll Number: 23A31A6201 • Regulation: R23</div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <span style="background:#EFF6FF;color:#2563EB;font-size:12px;font-weight:600;padding:4px 12px;border-radius:99px;">Current Semester: IV B.Tech (2-2)</span>
+          </div>
+        </div>
+
+        <!-- Metric KPI Grid with Animated Counters -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:14px;margin-bottom:24px;">
+          
+          <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:10px;padding:18px;">
+            <div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.04em;">Overall CGPA</div>
+            <div style="font-family:var(--font-display);font-size:2.2rem;font-weight:800;color:#0F172A;margin:4px 0 2px;" id="countCgpa">0.00</div>
+            <div style="font-size:11.5px;color:#16A34A;font-weight:600;">76.70% Equivalent</div>
+          </div>
+
+          <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:10px;padding:18px;">
+            <div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.04em;">Current SGPA</div>
+            <div style="font-family:var(--font-display);font-size:2.2rem;font-weight:800;color:#2563EB;margin:4px 0 2px;" id="countSgpa">0.00</div>
+            <div style="font-size:11.5px;color:#2563EB;font-weight:600;">Semester IV (2-2)</div>
+          </div>
+
+          <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:10px;padding:18px;">
+            <div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.04em;">Credits Completed</div>
+            <div style="font-family:var(--font-display);font-size:2.2rem;font-weight:800;color:#0F172A;margin:4px 0 2px;"><span id="countCredits">0</span> <span style="font-size:1.1rem;color:#94A3B8;font-weight:500;">/ 160</span></div>
+            <div style="font-size:11.5px;color:#64748B;font-weight:500;">51.2% Degree Progress</div>
+          </div>
+
+          <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:10px;padding:18px;">
+            <div style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.04em;">Academic Standing</div>
+            <div style="font-family:var(--font-display);font-size:1.4rem;font-weight:700;color:#16A34A;margin:12px 0 4px;">Passed</div>
+            <div style="font-size:11.5px;color:#16A34A;font-weight:600;">0 Pending Backlogs 🎉</div>
+          </div>
+
+        </div>
+
+        <!-- Semester History + SVG Trend Curve -->
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;">
+          
+          <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:10px;padding:18px;">
+            <div style="font-family:var(--font-display);font-size:13.5px;font-weight:700;color:#0F172A;margin-bottom:14px;">
+              Semester Performance History
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:10px;">
+              <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:12px 10px;text-align:center;">
+                <div style="font-size:11px;color:#64748B;font-weight:600;">Semester 1</div>
+                <div style="font-family:var(--font-display);font-size:1.2rem;font-weight:800;color:#0F172A;margin-top:2px;">8.10</div>
+                <div style="font-size:10px;color:#64748B;">19.0 Credits</div>
+              </div>
+
+              <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:12px 10px;text-align:center;">
+                <div style="font-size:11px;color:#64748B;font-weight:600;">Semester 2</div>
+                <div style="font-family:var(--font-display);font-size:1.2rem;font-weight:800;color:#0F172A;margin-top:2px;">8.35</div>
+                <div style="font-size:10px;color:#64748B;">19.0 Credits</div>
+              </div>
+
+              <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:12px 10px;text-align:center;">
+                <div style="font-size:11px;color:#64748B;font-weight:600;">Semester 3</div>
+                <div style="font-family:var(--font-display);font-size:1.2rem;font-weight:800;color:#0F172A;margin-top:2px;">8.56</div>
+                <div style="font-size:10px;color:#64748B;">22.0 Credits</div>
+              </div>
+
+              <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:12px 10px;text-align:center;">
+                <div style="font-size:11px;color:#2563EB;font-weight:700;">Semester 4</div>
+                <div style="font-family:var(--font-display);font-size:1.2rem;font-weight:800;color:#2563EB;margin-top:2px;">8.67</div>
+                <div style="font-size:10px;color:#2563EB;font-weight:600;">22.0 Credits</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Academic Interactive SVG Trend Curve -->
+          <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:10px;padding:18px;display:flex;flex-direction:column;justify-content:space-between;position:relative;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div style="font-family:var(--font-display);font-size:13px;font-weight:700;color:#0F172A;">
+                SGPA Trend Curve
+              </div>
+              <div id="chartTooltip" style="font-size:11px;font-family:var(--font-mono);color:#2563EB;font-weight:600;min-height:16px;">
+                Hover points
+              </div>
+            </div>
+
+            <svg viewBox="0 0 200 80" style="width:100%;height:65px;overflow:visible;">
+              <polyline id="trendPolyline" fill="none" stroke="#2563EB" stroke-width="3" points="10,60 65,45 120,28 180,15" />
+              <circle class="svg-point" cx="10" cy="60" r="5" fill="#2563EB" data-sem="Semester 1" data-sgpa="8.10" />
+              <circle class="svg-point" cx="65" cy="45" r="5" fill="#2563EB" data-sem="Semester 2" data-sgpa="8.35" />
+              <circle class="svg-point" cx="120" cy="28" r="5" fill="#2563EB" data-sem="Semester 3" data-sgpa="8.56" />
+              <circle class="svg-point" cx="180" cy="15" r="6" fill="#16A34A" data-sem="Semester 4" data-sgpa="8.67" />
+            </svg>
+
+            <div style="display:flex;justify-content:space-between;font-size:10.5px;color:#64748B;font-family:var(--font-mono);margin-top:4px;">
+              <span>S1 (8.10)</span>
+              <span>S4 (8.67)</span>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 4. THREE CORE CAPABILITIES (SCROLL REVEAL) ───────────────────────── -->
+  <section class="capabilities-section scroll-reveal">
+    <div class="section-title-wrap">
+      <h2 class="section-h2">Everything B.Tech Students Need</h2>
+      <p style="color:var(--text-muted);font-size:1rem;">A unified workspace for your academic history and technical learning.</p>
+    </div>
+
+    <div class="capabilities-grid">
+      <div class="capability-card scroll-reveal" data-delay="80">
+        <div class="capability-num">01 / ACADEMICS</div>
+        <h3 class="capability-h3">Track your academics</h3>
+        <p class="capability-p">Calculate exact credit-weighted SGPA and CGPA for JNTUK R23 regulations and keep every semester's grade sheet neatly organized.</p>
+      </div>
+
+      <div class="capability-card scroll-reveal" data-delay="160">
+        <div class="capability-num">02 / ANALYTICS</div>
+        <h3 class="capability-h3">Understand your performance</h3>
+        <p class="capability-p">View your multi-semester CGPA growth curve, percentage equivalents, completed degree credits, and backlog status.</p>
+      </div>
+
+      <div class="capability-card scroll-reveal" data-delay="240">
+        <div class="capability-num">03 / AI ASSISTANT</div>
+        <h3 class="capability-h3">Study with AI</h3>
+        <p class="capability-p">Ask GradeWise AI about engineering concepts, coding, exam prep, or get immediate analysis of your own academic records.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 5. INTERACTIVE GRADEWISE AI HOMEPAGE DEMO (SCROLL REVEAL + TYPING) ─── -->
+  <section class="scroll-reveal" style="max-width:1050px;margin:0 auto 96px;padding:0 24px;">
+    <div class="section-title-wrap">
+      <div style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">
+        ✦ DUAL-POWERED ASSISTANT
+      </div>
+      <h2 class="section-h2">Experience GradeWise AI</h2>
+      <p style="color:var(--text-muted);font-size:1rem;">Demonstrating general engineering concept study and personal academic query capability.</p>
+    </div>
+
+    <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:16px;box-shadow:0 10px 30px rgba(15,23,42,0.06);overflow:hidden;">
+      
+      <!-- Interactive Tab Bar -->
+      <div style="background:#F8FAFC;border-bottom:1px solid #E2E8F0;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:24px;height:24px;background:#4F46E5;color:#FFF;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">✦</div>
+          <span style="font-family:var(--font-display);font-weight:700;font-size:14px;color:#0F172A;">GradeWise AI Educational Demo</span>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="demo-tab-btn active" id="demoTabConcept" onclick="switchDemoTab('concept')">
+            💡 Study Question Demo
+          </button>
+          <button class="demo-tab-btn" id="demoTabGrades" onclick="switchDemoTab('grades')">
+            📊 Personal Grades Demo
+          </button>
+        </div>
+      </div>
+
+      <!-- Demo Conversation Container -->
+      <div style="padding:24px;background:#FAFAFA;min-height:280px;" id="aiDemoContainer">
+        
+        <!-- View 1: Study Question -->
+        <div id="demoContentConcept">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+            <div style="background:#4F46E5;color:#FFFFFF;padding:10px 16px;border-radius:12px;border-bottom-right-radius:2px;font-size:13.5px;max-width:80%;">
+              Explain overfitting in Machine Learning and how to prevent it.
+            </div>
+          </div>
+          
+          <div style="display:flex;gap:12px;align-items:flex-start;">
+            <div style="width:28px;height:28px;background:#4F46E5;color:#FFF;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">✦</div>
+            <div style="background:#FFFFFF;border:1px solid #E2E8F0;padding:14px 18px;border-radius:12px;border-bottom-left-radius:2px;font-size:13.5px;color:#0F172A;line-height:1.6;box-shadow:0 1px 4px rgba(0,0,0,0.03);max-width:88%;" id="typedConceptText">
+              <!-- Content typed via JS stream simulation -->
+              Overfitting occurs when a machine learning model learns both the underlying pattern and noisy details of the training data so closely that it fails to generalize to new unseen test data.<br/><br/>
+              <strong>Key Prevention Techniques:</strong>
+              <ul style="margin:6px 0 0 18px;padding:0;">
+                <li><strong>Cross-Validation:</strong> Use k-fold cross-validation to evaluate model performance across multiple splits.</li>
+                <li><strong>Regularization (L1 / L2):</strong> Penalize large feature weights (`Lasso` / `Ridge`).</li>
+                <li><strong>Early Stopping:</strong> Halt training when validation loss begins to rise.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- View 2: Personal Grades -->
+        <div id="demoContentGrades" style="display:none;">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+            <div style="background:#4F46E5;color:#FFFFFF;padding:10px 16px;border-radius:12px;border-bottom-right-radius:2px;font-size:13.5px;max-width:80%;">
+              What is my current CGPA and semester history?
+            </div>
+          </div>
+          
+          <div style="display:flex;gap:12px;align-items:flex-start;">
+            <div style="width:28px;height:28px;background:#4F46E5;color:#FFF;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">✦</div>
+            <div style="background:#FFFFFF;border:1px solid #E2E8F0;padding:14px 18px;border-radius:12px;border-bottom-left-radius:2px;font-size:13.5px;color:#0F172A;line-height:1.6;box-shadow:0 1px 4px rgba(0,0,0,0.03);max-width:88%;">
+              Based on your GradeWise academic profile (Roll: <strong>23A31A6201</strong>, CSE):<br/><br/>
+              🎓 <strong>Cumulative CGPA:</strong> <span style="color:#2563EB;font-weight:700;">8.42</span> (76.70% Equivalent)<br/>
+              📈 <strong>Latest SGPA:</strong> <span style="color:#16A34A;font-weight:700;">8.67</span> (Semester IV)<br/>
+              ⚡ <strong>Total Credits Completed:</strong> 82.0 / 160.0<br/>
+              🎉 <strong>Standing:</strong> Passed with 0 Pending Backlogs.
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div style="background:#F8FAFC;border-top:1px solid #E2E8F0;padding:12px 20px;text-align:center;font-size:12.5px;color:#64748B;">
+        Ask GradeWise AI your own questions using the floating assistant button at the bottom-right!
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── 6. B.TECH ACADEMIC SEMESTER TABS EXAMPLE (INTERACTIVE) ──────────────── -->
+  <section class="scroll-reveal" style="max-width:1100px;margin:0 auto 96px;padding:0 24px;">
+    <div class="section-title-wrap">
+      <div style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">
+        REALISTIC SEMESTER GRADE SHEETS
+      </div>
+      <h2 class="section-h2">Explore B.Tech Semester Records</h2>
+      <p style="color:var(--text-muted);font-size:1rem;">Click between semesters to see structured subject codes, credits, and grade point calculations.</p>
+    </div>
+
+    <!-- Clickable Semester Selector Tabs -->
+    <div style="display:flex;justify-content:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+      <button class="sem-tab-btn" onclick="switchSemesterTab(1)" id="semBtn1">Semester I (1-1)</button>
+      <button class="sem-tab-btn" onclick="switchSemesterTab(2)" id="semBtn2">Semester II (1-2)</button>
+      <button class="sem-tab-btn" onclick="switchSemesterTab(3)" id="semBtn3">Semester III (2-1)</button>
+      <button class="sem-tab-btn active" onclick="switchSemesterTab(4)" id="semBtn4">Semester IV (2-2)</button>
+    </div>
+
+    <div class="academic-sheet-card" id="semGradeSheet">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #E2E8F0;flex-wrap:wrap;gap:10px;">
+        <div>
+          <span style="font-family:var(--font-display);font-weight:700;font-size:1.1rem;color:#0F172A;" id="semSheetTitle">B.Tech CSE — Semester IV (2-2)</span>
+          <span style="font-size:13px;color:#64748B;margin-left:8px;" id="semSheetRegulation">Regulation: R23</span>
+        </div>
+        <div style="font-family:var(--font-mono);font-size:13px;font-weight:700;color:#2563EB;" id="semSheetSgpa">
+          Semester SGPA: 8.67
+        </div>
+      </div>
+
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:13.5px;text-align:left;" id="semTable">
+          <thead>
+            <tr style="border-bottom:1px solid #E2E8F0;color:#64748B;font-size:12px;">
+              <th style="padding:10px;font-weight:600;">SUBJECT CODE</th>
+              <th style="padding:10px;font-weight:600;">SUBJECT TITLE</th>
+              <th style="padding:10px;font-weight:600;">CREDITS</th>
+              <th style="padding:10px;font-weight:600;">GRADE</th>
+              <th style="padding:10px;font-weight:600;">GRADE POINT</th>
+            </tr>
+          </thead>
+          <tbody id="semTableBody">
+            <!-- Default Semester 4 data -->
+            <tr style="border-bottom:1px solid #F1F5F9;">
+              <td style="padding:10px;font-family:var(--font-mono);font-weight:600;color:#0F172A;">23CS401</td>
+              <td style="padding:10px;">Data Structures & Algorithms</td>
+              <td style="padding:10px;font-weight:600;">4.0</td>
+              <td style="padding:10px;"><span style="background:#DCFCE7;color:#166534;padding:2px 8px;border-radius:4px;font-weight:700;font-size:12px;">A</span></td>
+              <td style="padding:10px;font-weight:600;">9</td>
+            </tr>
+            <tr style="border-bottom:1px solid #F1F5F9;">
+              <td style="padding:10px;font-family:var(--font-mono);font-weight:600;color:#0F172A;">23CS402</td>
+              <td style="padding:10px;">Operating Systems</td>
+              <td style="padding:10px;font-weight:600;">3.0</td>
+              <td style="padding:10px;"><span style="background:#DCFCE7;color:#166534;padding:2px 8px;border-radius:4px;font-weight:700;font-size:12px;">S</span></td>
+              <td style="padding:10px;font-weight:600;">10</td>
+            </tr>
+            <tr style="border-bottom:1px solid #F1F5F9;">
+              <td style="padding:10px;font-family:var(--font-mono);font-weight:600;color:#0F172A;">23CS403</td>
+              <td style="padding:10px;">Database Management Systems</td>
+              <td style="padding:10px;font-weight:600;">3.0</td>
+              <td style="padding:10px;"><span style="background:#DCFCE7;color:#166534;padding:2px 8px;border-radius:4px;font-weight:700;font-size:12px;">A</span></td>
+              <td style="padding:10px;font-weight:600;">9</td>
+            </tr>
+            <tr>
+              <td style="padding:10px;font-family:var(--font-mono);font-weight:600;color:#0F172A;">23BS401</td>
+              <td style="padding:10px;">Discrete Mathematics</td>
+              <td style="padding:10px;font-weight:600;">4.0</td>
+              <td style="padding:10px;"><span style="background:#DCFCE7;color:#166534;padding:2px 8px;border-radius:4px;font-weight:700;font-size:12px;">B</span></td>
+              <td style="padding:10px;font-weight:600;">8</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 7. SECURITY TRUST STATEMENT ──────────────────────────────────────── -->
+  <section class="security-section scroll-reveal">
+    <h2 class="section-h2">Your academic data stays yours.</h2>
+    <p style="color:var(--text-muted);font-size:1rem;">Protected by verified JWT authentication and roll-number database scoping.</p>
+
+    <div class="trust-grid">
+      <div class="trust-item scroll-reveal" data-delay="80">
+        <span style="color:var(--blue);font-size:1.2rem;">🔒</span>
+        <span>Secure authentication</span>
+      </div>
+      <div class="trust-item scroll-reveal" data-delay="160">
+        <span style="color:var(--blue);font-size:1.2rem;">🛡️</span>
+        <span>Protected student records</span>
+      </div>
+      <div class="trust-item scroll-reveal" data-delay="240">
+        <span style="color:var(--blue);font-size:1.2rem;">🔑</span>
+        <span>Role-based administrative access</span>
+      </div>
+      <div class="trust-item scroll-reveal" data-delay="320">
+        <span style="color:var(--blue);font-size:1.2rem;">📋</span>
+        <span>Administrative audit logging</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 8. FINAL CTA ──────────────────────────────────────────────────────── -->
+  <section class="final-cta-section scroll-reveal">
+    <div class="cta-box">
+      <h2 class="cta-h2">Start tracking & learning with GradeWise.</h2>
+      <p class="cta-sub">Organize your semester grades and study smarter with your AI academic assistant.</p>
+      <a href="/signup" class="btn-saas-primary" style="padding:12px 32px;font-size:15px;background:#FFFFFF;color:#0F172A;">Get Started Free</a>
+    </div>
+  </section>
+
+  <!-- ── 9. FOOTER ─────────────────────────────────────────────────────────── -->
+  <footer class="site-footer">
+    <div class="footer-inner" style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:32px;">
+      <div>
+        <div style="font-family:var(--font-display);font-weight:700;color:var(--text);font-size:1.2rem;margin-bottom:8px;display:flex;align-items:center;gap:8px;">
+          🎓 GradeWise
+        </div>
+        <p style="color:var(--text-muted);font-size:13.5px;max-width:280px;line-height:1.5;">
+          Academic performance tracking & AI study assistant.
+        </p>
+      </div>
+
+      <div>
+        <div style="font-weight:700;color:var(--text);font-size:13px;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.04em;">Product</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13.5px;">
+          <a href="/" style="color:var(--text-muted);text-decoration:none;">Home</a>
+          <a href="/how-it-works" style="color:var(--text-muted);text-decoration:none;">How It Works</a>
+          <a href="/help" style="color:var(--text-muted);text-decoration:none;">Help</a>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-weight:700;color:var(--text);font-size:13px;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.04em;">Company</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13.5px;">
+          <a href="/about" style="color:var(--text-muted);text-decoration:none;">About</a>
+          <a href="/help#support" style="color:var(--text-muted);text-decoration:none;">Feedback</a>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-weight:700;color:var(--text);font-size:13px;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.04em;">Legal</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13.5px;">
+          <a href="/privacy" style="color:var(--text-muted);text-decoration:none;">Privacy</a>
+          <a href="/terms" style="color:var(--text-muted);text-decoration:none;">Terms</a>
+        </div>
+      </div>
+    </div>
+
+    <div style="max-width:1200px;margin:32px auto 0;padding-top:20px;border-top:1px solid var(--border);font-size:13px;color:var(--text-subtle);text-align:center;">
+      © 2026 GradeWise. All rights reserved.
+    </div>
+  </footer>
+
+<script src="ai-widget.js"></script>
+<script>
+  // Mobile menu toggle
+  document.getElementById("mobileMenuBtn")?.addEventListener("click", () => {
+    document.getElementById("headerNav")?.classList.toggle("active");
+  });
+
+  // 1. Scroll Reveal Observer
+  const scrollObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add("is-visible");
+      }
+    });
+  }, { threshold: 0.15 });
+
+  document.querySelectorAll(".scroll-reveal").forEach(el => scrollObserver.observe(el));
+
+  // 2. Animated KPI Counters + SVG Trend Line Draw
+  let hasAnimatedPreview = false;
+  const previewObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting && !hasAnimatedPreview) {
+        hasAnimatedPreview = true;
+        animateCounters();
+        document.getElementById("trendPolyline")?.classList.add("draw");
+      }
+    });
+  }, { threshold: 0.2 });
+
+  const previewEl = document.getElementById("dashboardMockup");
+  if (previewEl) previewObserver.observe(previewEl);
+
+  function animateCounters() {
+    // CGPA 0.00 -> 8.42
+    animateValue("countCgpa", 0, 8.42, 1200, (val) => val.toFixed(2));
+    // SGPA 0.00 -> 8.67
+    animateValue("countSgpa", 0, 8.67, 1200, (val) => val.toFixed(2));
+    // Credits 0 -> 82
+    animateValue("countCredits", 0, 82, 1000, (val) => Math.round(val));
+  }
+
+  function animateValue(id, start, end, duration, formatFn) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const startTime = performance.now();
+    function update(currentTime) {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const current = start + (end - start) * easeOutCubic(progress);
+      el.textContent = formatFn(current);
+      if (progress < 1) {
+        requestAnimationFrame(update);
+      }
+    }
+    requestAnimationFrame(update);
+  }
+
+  function easeOutCubic(x) {
+    return 1 - Math.pow(1 - x, 3);
+  }
+
+  // 3. SVG Trend Curve Point Tooltips
+  document.querySelectorAll(".svg-point").forEach(point => {
+    point.addEventListener("mouseenter", (e) => {
+      const sem = e.target.getAttribute("data-sem");
+      const sgpa = e.target.getAttribute("data-sgpa");
+      const tooltip = document.getElementById("chartTooltip");
+      if (tooltip) tooltip.textContent = `${sem} • SGPA: ${sgpa}`;
+    });
+    point.addEventListener("mouseleave", () => {
+      const tooltip = document.getElementById("chartTooltip");
+      if (tooltip) tooltip.textContent = "Hover points";
+    });
+  });
+
+  // 4. Interactive Semester Tabs Data
+  const semesterData = {
+    1: {
+      title: "B.Tech CSE — Semester I (1-1)",
+      sgpa: "Semester SGPA: 8.10",
+      rows: [
+        { code: "23BS101", title: "Linear Algebra & Calculus", credits: "4.0", grade: "A", gp: "9" },
+        { code: "23PH101", title: "Engineering Physics", credits: "4.0", grade: "B", gp: "8" },
+        { code: "23CS101", title: "Programming for Problem Solving (C)", credits: "3.0", grade: "A", gp: "9" },
+        { code: "23EE101", title: "Basic Electrical Engineering", credits: "3.0", grade: "B", gp: "8" }
+      ]
+    },
+    2: {
+      title: "B.Tech CSE — Semester II (1-2)",
+      sgpa: "Semester SGPA: 8.35",
+      rows: [
+        { code: "23BS102", title: "Differential Equations & Vector Calculus", credits: "4.0", grade: "A", gp: "9" },
+        { code: "23CH101", title: "Engineering Chemistry", credits: "4.0", grade: "A", gp: "9" },
+        { code: "23CS102", title: "Python Programming", credits: "3.0", grade: "S", gp: "10" },
+        { code: "23ME101", title: "Engineering Graphics", credits: "3.0", grade: "B", gp: "8" }
+      ]
+    },
+    3: {
+      title: "B.Tech CSE — Semester III (2-1)",
+      sgpa: "Semester SGPA: 8.56",
+      rows: [
+        { code: "23CS301", title: "Object Oriented Programming (Java)", credits: "4.0", grade: "S", gp: "10" },
+        { code: "23CS302", title: "Computer Organization & Architecture", credits: "4.0", grade: "A", gp: "9" },
+        { code: "23CS303", title: "Digital Logic Design", credits: "3.0", grade: "A", gp: "9" },
+        { code: "23BS301", title: "Probability & Statistics", credits: "3.0", grade: "B", gp: "8" }
+      ]
+    },
+    4: {
+      title: "B.Tech CSE — Semester IV (2-2)",
+      sgpa: "Semester SGPA: 8.67",
+      rows: [
+        { code: "23CS401", title: "Data Structures & Algorithms", credits: "4.0", grade: "A", gp: "9" },
+        { code: "23CS402", title: "Operating Systems", credits: "3.0", grade: "S", gp: "10" },
+        { code: "23CS403", title: "Database Management Systems", credits: "3.0", grade: "A", gp: "9" },
+        { code: "23BS401", title: "Discrete Mathematics", credits: "4.0", grade: "B", gp: "8" }
+      ]
+    }
+  };
+
+  function switchSemesterTab(num) {
+    document.querySelectorAll(".sem-tab-btn").forEach(b => b.classList.remove("active"));
+    document.getElementById(`semBtn${num}`)?.classList.add("active");
+
+    const sheet = document.getElementById("semGradeSheet");
+    if (!sheet) return;
+
+    sheet.style.opacity = "0.4";
+    sheet.style.transition = "opacity 0.15s ease";
+
+    setTimeout(() => {
+      const data = semesterData[num];
+      document.getElementById("semSheetTitle").textContent = data.title;
+      document.getElementById("semSheetSgpa").textContent = data.sgpa;
+
+      const body = document.getElementById("semTableBody");
+      body.innerHTML = data.rows.map(r => `
+        <tr style="border-bottom:1px solid #F1F5F9;">
+          <td style="padding:10px;font-family:var(--font-mono);font-weight:600;color:#0F172A;">${r.code}</td>
+          <td style="padding:10px;">${r.title}</td>
+          <td style="padding:10px;font-weight:600;">${r.credits}</td>
+          <td style="padding:10px;"><span style="background:#DCFCE7;color:#166534;padding:2px 8px;border-radius:4px;font-weight:700;font-size:12px;">${r.grade}</span></td>
+          <td style="padding:10px;font-weight:600;">${r.gp}</td>
+        </tr>
+      `).join("");
+
+      sheet.style.opacity = "1";
+    }, 150);
+  }
+
+  // 5. GradeWise AI Demo Tab Switcher
+  function switchDemoTab(type) {
+    const btnConcept = document.getElementById("demoTabConcept");
+    const btnGrades = document.getElementById("demoTabGrades");
+    const contentConcept = document.getElementById("demoContentConcept");
+    const contentGrades = document.getElementById("demoContentGrades");
+
+    if (type === "concept") {
+      btnConcept.classList.add("active");
+      btnGrades.classList.remove("active");
+      contentConcept.style.display = "block";
+      contentGrades.style.display = "none";
+    } else {
+      btnGrades.classList.add("active");
+      btnConcept.classList.remove("active");
+      contentGrades.style.display = "block";
+      contentConcept.style.display = "none";
+    }
+  }
+</script>
+</body>
+</html>

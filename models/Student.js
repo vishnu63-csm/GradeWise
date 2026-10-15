@@ -1,7 +1,23 @@
 const mongoose = require("mongoose");
 
+const GradeHistoryRecordSchema = new mongoose.Schema(
+  {
+    semester: { type: String, required: true },
+    subjectCode: { type: String, default: "" },
+    subjectName: { type: String, required: true },
+    previousGrade: { type: String, required: true },
+    previousGradePoint: { type: Number, required: true },
+    newGrade: { type: String, required: true },
+    newGradePoint: { type: Number, required: true },
+    attemptDate: { type: Date, default: Date.now },
+    updatedBy: { type: String, default: "Student" },
+  },
+  { _id: false }
+);
+
 const SubjectSchema = new mongoose.Schema(
   {
+    code: { type: String, trim: true, default: "" },
     subject: { type: String, required: true, trim: true },
     credits: { type: Number, required: true, min: 0 },
     grade: {
@@ -9,6 +25,17 @@ const SubjectSchema = new mongoose.Schema(
       required: true,
       enum: ["S", "A", "B", "C", "D", "E", "F", "Ab"],
     },
+    gradePoint: { type: Number, default: 0 },
+    history: [
+      {
+        previousGrade: { type: String, required: true },
+        previousGradePoint: { type: Number, required: true },
+        newGrade: { type: String, required: true },
+        newGradePoint: { type: Number, required: true },
+        updatedAt: { type: Date, default: Date.now },
+        updatedBy: { type: String, default: "Student" },
+      },
+    ],
   },
   { _id: false }
 );
@@ -54,6 +81,7 @@ const StudentSchema = new mongoose.Schema(
       default: "Regular Entry",
     },
     semesters: { type: [SemesterSchema], default: [] },
+    gradeHistory: { type: [GradeHistoryRecordSchema], default: [] },
   },
   { timestamps: true }
 );

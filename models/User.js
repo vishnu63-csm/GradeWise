@@ -22,6 +22,9 @@ const UserSchema = new mongoose.Schema(
       match: [/^[6-9]\d{9}$/, "Phone number must be a valid 10-digit Indian mobile number"],
     },
     passwordHash: { type: String, required: true },
+    email: { type: String, trim: true, lowercase: true, index: true },
+    resetPasswordToken: { type: String, index: true },
+    resetPasswordExpires: { type: Date },
   },
   { timestamps: true }
 );

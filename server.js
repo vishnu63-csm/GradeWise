@@ -13,6 +13,7 @@ const path = require("path");
 const authRoutes = require("./routes/auth");
 const apiRoutes = require("./routes/api");
 const adminRoutes = require("./routes/admin");
+const aiRoutes = require("./routes/ai");
 
 // Register all models (ensures indexes are created)
 require("./models/Student");
@@ -39,6 +40,8 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use("/api/auth", authRoutes);
 // Admin routes (upload, analytics — protected by adminAuth)
 app.use("/api/admin", adminRoutes);
+// GradeWise AI Assistant routes (protected by JWT inside)
+app.use("/api/ai", aiRoutes);
 // Student data routes (all protected by JWT middleware inside)
 app.use("/api", apiRoutes);
 
@@ -47,15 +50,32 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok", dbState: mongoose.connection.readyState });
 });
 
-// Catch-all: serve login page for any unknown route
+// HTML Page Route Aliases
+app.get("/", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
+app.get("/how-it-works", (req, res) => res.sendFile(path.join(__dirname, "public", "how-it-works.html")));
+app.get("/about", (req, res) => res.sendFile(path.join(__dirname, "public", "about.html")));
+app.get("/help", (req, res) => res.sendFile(path.join(__dirname, "public", "help.html")));
+app.get("/privacy", (req, res) => res.sendFile(path.join(__dirname, "public", "privacy.html")));
+app.get("/terms", (req, res) => res.sendFile(path.join(__dirname, "public", "terms.html")));
+app.get("/login", (req, res) => res.sendFile(path.join(__dirname, "public", "login.html")));
+app.get("/signup", (req, res) => res.sendFile(path.join(__dirname, "public", "register.html")));
+app.get("/register", (req, res) => res.sendFile(path.join(__dirname, "public", "register.html")));
+app.get("/forgot-password", (req, res) => res.sendFile(path.join(__dirname, "public", "forgot-password.html")));
+app.get("/reset-password", (req, res) => res.sendFile(path.join(__dirname, "public", "reset-password.html")));
+app.get("/reset-password/:token", (req, res) => res.sendFile(path.join(__dirname, "public", "reset-password.html")));
+
+// Catch-all: serve index.html or login page for unknown routes
 app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "login.html"));
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
+
+const { verifyEmailService } = require("./utils/email");
 
 mongoose
   .connect(MONGODB_URI)
-  .then(() => {
+  .then(async () => {
     console.log("Connected to MongoDB Atlas ✅");
+    await verifyEmailService();
     app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
   })
   .catch((err) => {

@@ -29,6 +29,7 @@ app.use(express.static(PUBLIC_DIR, {
 const authRoutes  = require("../routes/auth");
 const apiRoutes   = require("../routes/api");
 const adminRoutes = require("../routes/admin");
+const aiRoutes    = require("../routes/ai");
 
 // Force-register all models so their indexes get created at startup
 require("../models/Student");
@@ -37,9 +38,12 @@ require("../models/Admin");
 require("../models/ResultUpload");
 require("../models/StudentResult");
 require("../models/RollNumberRule");
+require("../models/AuditLog");
+require("../models/Feedback");
 
 app.use("/api/auth",  authRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/ai",    aiRoutes);
 app.use("/api",       apiRoutes);
 
 // Health check

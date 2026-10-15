@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>How GradeWise Works — Academic Performance Tracking</title>
+<meta name="description" content="From entering your academic records to understanding your overall performance, GradeWise keeps the process simple."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="auth.css"/>
+<link rel="stylesheet" href="ai-widget.css"/>
+<style>
+  .header-nav a.active { color: var(--blue); font-weight: 600; }
+  
+  .process-container { max-width: 960px; margin: 0 auto; padding: 64px 24px 96px; }
+  
+  .timeline-list {
+    display: flex; flex-direction: column; gap: 36px; margin-top: 48px; position: relative;
+  }
+  .timeline-list::before {
+    content: ""; position: absolute; left: 24px; top: 32px; bottom: 32px; width: 2px;
+    background: #E2E8F0; z-index: 0;
+  }
+  @media (max-width: 600px) { .timeline-list::before { left: 18px; } }
+  
+  .timeline-item {
+    display: flex; gap: 24px; position: relative; z-index: 1; align-items: flex-start;
+  }
+  .timeline-number {
+    width: 48px; height: 48px; border-radius: 50%; background: #FFFFFF; border: 2px solid var(--border);
+    color: var(--text-subtle); font-family: var(--font-mono); font-weight: 800; font-size: 15px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .timeline-item.active .timeline-number {
+    border-color: var(--blue);
+    color: var(--blue);
+    background: #EFF6FF;
+    transform: scale(1.08);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.15);
+  }
+  @media (max-width: 600px) { .timeline-number { width: 36px; height: 36px; font-size: 13px; } }
+  
+  .timeline-content-card {
+    background: #FFFFFF; border: 1px solid var(--border); border-radius: 12px;
+    padding: 28px; flex: 1; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.03);
+    display: grid; grid-template-columns: 1fr 240px; gap: 24px; align-items: center;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .timeline-item.active .timeline-content-card {
+    border-color: var(--blue);
+    box-shadow: 0 10px 24px -6px rgba(37, 99, 235, 0.08);
+  }
+  @media (max-width: 768px) { .timeline-content-card { grid-template-columns: 1fr; } }
+
+  .timeline-title {
+    font-family: var(--font-display); font-size: 1.25rem; font-weight: 700; color: var(--text); margin-bottom: 8px;
+  }
+  .timeline-desc {
+    color: var(--text-muted); font-size: 14.5px; line-height: 1.6; margin: 0;
+  }
+  
+  /* Mini UI Snippet Previews */
+  .snippet-box {
+    background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 14px;
+    font-family: var(--font-mono); font-size: 12px; color: var(--text-muted);
+  }
+  .snippet-label { font-size: 10.5px; font-weight: 700; color: #64748B; text-transform: uppercase; margin-bottom: 4px; }
+  .snippet-val { font-weight: 700; color: #0F172A; font-size: 13px; }
+</style>
+</head>
+<body>
+
+  <!-- ── HEADER ────────────────────────────────────────────────────────────── -->
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="/" style="text-decoration:none;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:1.4rem;">🎓</span>
+        <span style="font-family:var(--font-display);font-size:1.3rem;font-weight:700;color:var(--text);">GradeWise</span>
+      </a>
+
+      <nav class="header-nav" id="headerNav">
+        <a href="/">Home</a>
+        <a href="/how-it-works" class="active">How It Works</a>
+        <a href="/help">Help</a>
+        <a href="/about">About</a>
+      </nav>
+
+      <div class="header-actions">
+        <a href="/login" class="btn-saas-secondary" style="padding:7px 14px;font-size:13.5px;">Sign In</a>
+        <a href="/signup" class="btn-saas-primary" style="padding:7px 16px;font-size:13.5px;">Get Started</a>
+        <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Toggle menu">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── PROCESS WALKTHROUGH MAIN ─────────────────────────────────────────── -->
+  <main class="process-container">
+    <div style="text-align:center;margin-bottom:32px;">
+      <div style="font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">PRODUCT WALKTHROUGH</div>
+      <h1 style="font-family:var(--font-display);font-size:2.6rem;font-weight:800;color:var(--text);margin-bottom:12px;">From grades to a clear academic picture.</h1>
+      <p style="color:var(--text-muted);font-size:1.1rem;max-width:620px;margin:0 auto;line-height:1.6;">
+        GradeWise turns your semester results into an organized view of your B.Tech academic performance.
+      </p>
+    </div>
+
+    <div class="timeline-list">
+
+      <!-- Step 01 -->
+      <div class="timeline-item scroll-reveal active" data-delay="80">
+        <div class="timeline-number">01</div>
+        <div class="timeline-content-card">
+          <div>
+            <h2 class="timeline-title">Set up your profile</h2>
+            <p class="timeline-desc">Enter your basic student details such as roll number, branch and academic information.</p>
+          </div>
+          <div class="snippet-box">
+            <div class="snippet-label">Profile Setup</div>
+            <div class="snippet-val">Roll: 23A31A6201</div>
+            <div>Branch: CSE | Regular Entry</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 02 -->
+      <div class="timeline-item scroll-reveal" data-delay="160">
+        <div class="timeline-number">02</div>
+        <div class="timeline-content-card">
+          <div>
+            <h2 class="timeline-title">Add your semester</h2>
+            <p class="timeline-desc">Select the semester and add the subjects included in your result sheet.</p>
+          </div>
+          <div class="snippet-box">
+            <div class="snippet-label">Semester Record</div>
+            <div class="snippet-val">Semester IV (2-2)</div>
+            <div>+ 5 Subject Rows Added</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 03 -->
+      <div class="timeline-item scroll-reveal" data-delay="240">
+        <div class="timeline-number">03</div>
+        <div class="timeline-content-card">
+          <div>
+            <h2 class="timeline-title">Enter grades and credits</h2>
+            <p class="timeline-desc">Record each subject's earned letter grade and corresponding credit weight.</p>
+          </div>
+          <div class="snippet-box">
+            <div class="snippet-label">Subject Grade</div>
+            <div class="snippet-val">Data Structures</div>
+            <div>Credits: 4.0 | Grade: A</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 04 -->
+      <div class="timeline-item scroll-reveal" data-delay="320">
+        <div class="timeline-number">04</div>
+        <div class="timeline-content-card">
+          <div>
+            <h2 class="timeline-title">View SGPA</h2>
+            <p class="timeline-desc">GradeWise calculates the semester performance based on the entered academic records.</p>
+          </div>
+          <div class="snippet-box" style="background:#EFF6FF;border-color:#BFDBFE;">
+            <div class="snippet-label" style="color:#2563EB;">Semester Result</div>
+            <div class="snippet-val" style="color:#2563EB;font-size:1.1rem;">SGPA: 8.67</div>
+            <div style="color:#2563EB;">79.20% Equivalent</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 05 -->
+      <div class="timeline-item scroll-reveal">
+        <div class="timeline-number">05</div>
+        <div class="timeline-content-card">
+          <div>
+            <h2 class="timeline-title">Track your CGPA</h2>
+            <p class="timeline-desc">As you add semesters, GradeWise gives you a cumulative view of your academic performance.</p>
+          </div>
+          <div class="snippet-box" style="background:#F0FDF4;border-color:#BBF7D0;">
+            <div class="snippet-label" style="color:#166534;">Cumulative CGPA</div>
+            <div class="snippet-val" style="color:#166534;font-size:1.1rem;">CGPA: 8.42</div>
+            <div style="color:#166534;">0 Backlogs Pending</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Process End CTA -->
+    <div class="scroll-reveal" style="margin-top:64px;background:#0F172A;color:#FFFFFF;border-radius:16px;padding:48px 24px;text-align:center;">
+      <h3 style="font-family:var(--font-display);font-size:1.8rem;font-weight:700;margin-bottom:8px;">Start managing your B.Tech records</h3>
+      <p style="color:#94A3B8;font-size:1rem;margin-bottom:28px;">Create your account and calculate your first semester SGPA in under 2 minutes.</p>
+      <a href="/signup" class="btn-saas-primary" style="padding:12px 28px;font-size:15px;background:#FFFFFF;color:#0F172A;">Create Free Account →</a>
+    </div>
+  </main>
+
+  <!-- ── FOOTER ────────────────────────────────────────────────────────────── -->
+  <footer class="site-footer">
+    <div class="footer-inner" style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:32px;">
+      <div>
+        <div style="font-family:var(--font-display);font-weight:700;color:var(--text);font-size:1.2rem;margin-bottom:8px;display:flex;align-items:center;gap:8px;">
+          🎓 GradeWise
+        </div>
+        <p style="color:var(--text-muted);font-size:13.5px;max-width:280px;line-height:1.5;">
+          Academic performance tracking, made simple.
+        </p>
+      </div>
+
+      <div>
+        <div style="font-weight:700;color:var(--text);font-size:13px;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.04em;">Product</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13.5px;">
+          <a href="/" style="color:var(--text-muted);text-decoration:none;">Home</a>
+          <a href="/how-it-works" style="color:var(--text-muted);text-decoration:none;">How It Works</a>
+          <a href="/help" style="color:var(--text-muted);text-decoration:none;">Help</a>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-weight:700;color:var(--text);font-size:13px;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.04em;">Company</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13.5px;">
+          <a href="/about" style="color:var(--text-muted);text-decoration:none;">About</a>
+          <a href="/help#support" style="color:var(--text-muted);text-decoration:none;">Feedback</a>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-weight:700;color:var(--text);font-size:13px;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.04em;">Legal</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13.5px;">
+          <a href="/privacy" style="color:var(--text-muted);text-decoration:none;">Privacy</a>
+          <a href="/terms" style="color:var(--text-muted);text-decoration:none;">Terms</a>
+        </div>
+      </div>
+    </div>
+
+    <div style="max-width:1200px;margin:32px auto 0;padding-top:20px;border-top:1px solid var(--border);font-size:13px;color:var(--text-subtle);text-align:center;">
+      © 2026 GradeWise. All rights reserved.
+    </div>
+  </footer>
+
+<script src="ai-widget.js"></script>
+<script>
+  document.getElementById("mobileMenuBtn")?.addEventListener("click", () => {
+    document.getElementById("headerNav")?.classList.toggle("active");
+  });
+
+  // Scroll Reveal Observer & Timeline Active Step Highlighter
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add("is-visible");
+        if (entry.target.classList.contains("timeline-item")) {
+          entry.target.classList.add("active");
+        }
+      }
+    });
+  }, { threshold: 0.3 });
+
+  document.querySelectorAll(".scroll-reveal").forEach(el => observer.observe(el));
+</script>
+</body>
+</html>

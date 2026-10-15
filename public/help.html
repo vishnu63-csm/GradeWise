@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GradeWise Help & Support — Documentation & FAQs</title>
+<meta name="description" content="Find answers about your academic records, SGPA, CGPA and GradeWise account."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="auth.css"/>
+<link rel="stylesheet" href="ai-widget.css"/>
+<style>
+  .header-nav a.active { color: var(--blue); font-weight: 600; }
+  
+  .help-container { max-width: 960px; margin: 0 auto; padding: 64px 24px 96px; }
+  
+  .search-box { margin-bottom: 40px; text-align: center; }
+  .search-input {
+    max-width: 560px; width: 100%; padding: 14px 20px; border: 1.5px solid var(--border);
+    border-radius: 12px; font-size: 15px; outline: none; background: #FFFFFF; color: var(--text);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03); transition: all 0.15s ease;
+  }
+  .search-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
+
+  .category-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 48px;
+  }
+  @media (max-width: 640px) { .category-grid { grid-template-columns: 1fr; } }
+  
+  .category-card {
+    background: #FFFFFF; border: 1px solid var(--border); border-radius: 12px; padding: 24px;
+    transition: all 0.2s ease; cursor: pointer; text-decoration: none; display: block;
+  }
+  .category-card:hover { border-color: var(--blue); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04); }
+  .category-title { font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  .category-bullets { color: var(--text-muted); font-size: 13.5px; line-height: 1.6; margin: 0; padding-left: 18px; }
+
+  .contact-box {
+    background: #FFFFFF; border: 1px solid var(--border); border-radius: 12px; padding: 36px; max-width: 600px; margin: 48px auto 0;
+  }
+</style>
+</head>
+<body>
+
+  <!-- ── HEADER ────────────────────────────────────────────────────────────── -->
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="/" style="text-decoration:none;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:1.4rem;">🎓</span>
+        <span style="font-family:var(--font-display);font-size:1.3rem;font-weight:700;color:var(--text);">GradeWise</span>
+      </a>
+
+      <nav class="header-nav" id="headerNav">
+        <a href="/">Home</a>
+        <a href="/how-it-works">How It Works</a>
+        <a href="/help" class="active">Help</a>
+        <a href="/about">About</a>
+      </nav>
+
+      <div class="header-actions">
+        <a href="/login" class="btn-saas-secondary" style="padding:7px 14px;font-size:13.5px;">Sign In</a>
+        <a href="/signup" class="btn-saas-primary" style="padding:7px 16px;font-size:13.5px;">Get Started</a>
+        <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Toggle menu">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── MAIN SUPPORT CENTER ───────────────────────────────────────────────── -->
+  <main class="help-container">
+    <div style="text-align:center;margin-bottom:32px;">
+      <h1 style="font-family:var(--font-display);font-size:2.6rem;font-weight:800;color:var(--text);margin-bottom:12px;">How can we help?</h1>
+      <p style="color:var(--text-muted);font-size:1.1rem;max-width:600px;margin:0 auto;">
+        Find answers about your academic records, SGPA, CGPA and GradeWise account.
+      </p>
+    </div>
+
+    <!-- Search Box -->
+    <div class="search-box">
+      <input type="text" id="faqSearch" class="search-input" placeholder="Search GradeWise Help..." />
+    </div>
+
+    <!-- Help Categories -->
+    <div class="category-grid">
+      <div class="category-card scroll-reveal" data-delay="80" onclick="document.getElementById('faqAccordion').scrollIntoView({behavior:'smooth'});">
+        <div class="category-title">Getting Started</div>
+        <ul class="category-bullets">
+          <li>Creating your account</li>
+          <li>Adding your first semester</li>
+          <li>Understanding the dashboard</li>
+        </ul>
+      </div>
+
+      <div class="category-card scroll-reveal" data-delay="160" onclick="document.getElementById('faqAccordion').scrollIntoView({behavior:'smooth'});">
+        <div class="category-title">Academic Records</div>
+        <ul class="category-bullets">
+          <li>Adding subjects & subject codes</li>
+          <li>Entering credits & letter grades</li>
+          <li>Managing semester history</li>
+        </ul>
+      </div>
+
+      <div class="category-card scroll-reveal" data-delay="240" onclick="document.getElementById('faqAccordion').scrollIntoView({behavior:'smooth'});">
+        <div class="category-title">SGPA & CGPA</div>
+        <ul class="category-bullets">
+          <li>What is SGPA & how it's calculated</li>
+          <li>What is CGPA & percentage conversion</li>
+          <li>Lateral entry credit exclusions</li>
+        </ul>
+      </div>
+
+      <div class="category-card scroll-reveal" data-delay="320" onclick="document.getElementById('faqAccordion').scrollIntoView({behavior:'smooth'});">
+        <div class="category-title">Account & Security</div>
+        <ul class="category-bullets">
+          <li>Changing your password</li>
+          <li>Forgot password recovery</li>
+          <li>Account privacy & scoping</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Frequently Asked Questions Accordions -->
+    <h2 style="font-family:var(--font-display);font-size:1.5rem;font-weight:700;margin-bottom:20px;">Frequently Asked Questions</h2>
+
+    <div id="faqAccordion">
+      <div class="faq-accordion-item scroll-reveal">
+        <button class="faq-accordion-header">
+          <span>What is SGPA and how does GradeWise calculate it?</span>
+          <span class="acc-icon">+</span>
+        </button>
+        <div class="faq-accordion-content">
+          Semester Grade Point Average (SGPA) measures your academic performance in a single semester. GradeWise calculates SGPA by multiplying each subject's credit weighting by its earned grade point, summing the total points, and dividing by total credits in that semester.
+        </div>
+      </div>
+
+      <div class="faq-accordion-item scroll-reveal" data-delay="80">
+        <button class="faq-accordion-header">
+          <span>What is CGPA and how is percentage calculated?</span>
+          <span class="acc-icon">+</span>
+        </button>
+        <div class="faq-accordion-content">
+          Cumulative Grade Point Average (CGPA) represents your cumulative performance across all completed semesters. GradeWise uses official university credit weighting. Under JNTUK R23 guidelines, percentage is calculated as <code>Percentage = (CGPA − 0.75) × 10</code>.
+        </div>
+      </div>
+
+      <div class="faq-accordion-item scroll-reveal" data-delay="160">
+        <button class="faq-accordion-header">
+          <span>How does Lateral Entry CGPA calculation work?</span>
+          <span class="acc-icon">+</span>
+        </button>
+        <div class="faq-accordion-content">
+          When your profile category is set to "Lateral Entry", GradeWise automatically excludes 1-1 and 1-2 semester credits from CGPA and overall percentage calculations according to university academic rules.
+        </div>
+      </div>
+
+      <div class="faq-accordion-item scroll-reveal" data-delay="240">
+        <button class="faq-accordion-header">
+          <span>How do I reset my account password?</span>
+          <span class="acc-icon">+</span>
+        </button>
+        <div class="faq-accordion-content">
+          Visit the <a href="/forgot-password" style="color:var(--blue);">Forgot Password page</a>, enter your registered email address or roll number, and click "Send Reset Link".
+        </div>
+      </div>
+    </div>
+
+    <!-- Support Form -->
+    <div class="contact-box scroll-reveal" id="support">
+      <h2 style="font-family:var(--font-display);font-size:1.3rem;font-weight:700;margin-bottom:8px;text-align:center;">Contact Support / Submit Feedback</h2>
+      <p style="color:var(--text-muted);font-size:14px;text-align:center;margin-bottom:24px;">Have a question about your academic records or account? Send us a message.</p>
+
+      <form id="publicHelpForm">
+        <div id="helpAlert" style="display:none;padding:12px;border-radius:8px;font-size:13.5px;margin-bottom:16px;"></div>
+
+        <div style="margin-bottom:14px;">
+          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;">Category *</label>
+          <select id="hpCategory" class="field-input" style="padding:10px 12px;" required>
+            <option value="General Feedback">General Feedback</option>
+            <option value="Bug Report">Bug Report</option>
+            <option value="Calculation Issue">Calculation Issue</option>
+            <option value="Account Issue">Account / Password Issue</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;">Roll Number (Optional)</label>
+          <input type="text" id="hpRoll" class="field-input" placeholder="e.g. 23A31A6201" style="padding:10px 12px;" />
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;">Subject *</label>
+          <input type="text" id="hpSubject" class="field-input" placeholder="Summary of question" style="padding:10px 12px;" required />
+        </div>
+
+        <div style="margin-bottom:20px;">
+          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px;">Message *</label>
+          <textarea id="hpMessage" class="field-input" rows="4" placeholder="Detailed message..." style="padding:10px 12px;" required></textarea>
+        </div>
+
+        <button type="submit" id="hpSubmitBtn" class="btn-saas-primary" style="width:100%;padding:11px;">Send Message</button>
+      </form>
+    </div>
+
+    <!-- Need an Account CTA Connection -->
+    <div class="scroll-reveal" style="margin-top:64px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:12px;padding:32px;text-align:center;">
+      <h3 style="font-family:var(--font-display);font-size:1.3rem;font-weight:700;color:var(--text);margin-bottom:6px;">Need an account?</h3>
+      <p style="color:var(--text-muted);font-size:14.5px;margin-bottom:20px;">Set up your profile and start organizing your B.Tech academic records.</p>
+      <a href="/signup" class="btn-saas-primary" style="padding:10px 24px;">Create Account →</a>
+    </div>
+
+  </main>
+
+  <!-- ── FOOTER ────────────────────────────────────────────────────────────── -->
+  <footer class="site-footer">
+    <div class="footer-inner" style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:32px;">
+      <div>
+        <div style="font-family:var(--font-display);font-weight:700;color:var(--text);font-size:1.2rem;margin-bottom:8px;display:flex;align-items:center;gap:8px;">
+          🎓 GradeWise
+        </div>
+        <p style="color:var(--text-muted);font-size:13.5px;max-width:280px;line-height:1.5;">
+          Academic performance tracking, made simple.
+        </p>
+      </div>
+
+      <div>
+        <div style="font-weight:700;color:var(--text);font-size:13px;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.04em;">Product</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13.5px;">
+          <a href="/" style="color:var(--text-muted);text-decoration:none;">Home</a>
+          <a href="/how-it-works" style="color:var(--text-muted);text-decoration:none;">How It Works</a>
+          <a href="/help" style="color:var(--text-muted);text-decoration:none;">Help</a>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-weight:700;color:var(--text);font-size:13px;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.04em;">Company</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13.5px;">
+          <a href="/about" style="color:var(--text-muted);text-decoration:none;">About</a>
+          <a href="/help#support" style="color:var(--text-muted);text-decoration:none;">Feedback</a>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-weight:700;color:var(--text);font-size:13px;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.04em;">Legal</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13.5px;">
+          <a href="/privacy" style="color:var(--text-muted);text-decoration:none;">Privacy</a>
+          <a href="/terms" style="color:var(--text-muted);text-decoration:none;">Terms</a>
+        </div>
+      </div>
+    </div>
+
+    <div style="max-width:1200px;margin:32px auto 0;padding-top:20px;border-top:1px solid var(--border);font-size:13px;color:var(--text-subtle);text-align:center;">
+      © 2026 GradeWise. All rights reserved.
+    </div>
+  </footer>
+
+<script src="ai-widget.js"></script>
+<script>
+  document.getElementById("mobileMenuBtn")?.addEventListener("click", () => {
+    document.getElementById("headerNav")?.classList.toggle("active");
+  });
+
+  // Scroll Reveal Observer
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add("is-visible");
+      }
+    });
+  }, { threshold: 0.15 });
+
+  document.querySelectorAll(".scroll-reveal").forEach(el => observer.observe(el));
+
+  // Accordion Toggle
+  document.querySelectorAll(".faq-accordion-header").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const item = btn.parentElement;
+      item.classList.toggle("open");
+      const icon = btn.querySelector(".acc-icon");
+      if (icon) icon.textContent = item.classList.contains("open") ? "−" : "+";
+    });
+  });
+
+  // Search Filter
+  document.getElementById("faqSearch")?.addEventListener("input", (e) => {
+    const term = e.target.value.toLowerCase();
+    document.querySelectorAll(".faq-accordion-item").forEach(item => {
+      const text = item.textContent.toLowerCase();
+      item.style.display = text.includes(term) ? "block" : "none";
+    });
+  });
+
+  // Support Form
+  document.getElementById("publicHelpForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const category = document.getElementById("hpCategory").value;
+    const userRollNumber = document.getElementById("hpRoll").value.trim().toUpperCase();
+    const subject = document.getElementById("hpSubject").value.trim();
+    const message = document.getElementById("hpMessage").value.trim();
+    const alertEl = document.getElementById("helpAlert");
+    const submitBtn = document.getElementById("hpSubmitBtn");
+
+    try {
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Sending...";
+      const res = await fetch("/api/feedback/public", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category, subject, message, userRollNumber }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Submission failed");
+
+      alertEl.textContent = "Thank you! Your message has been sent successfully.";
+      alertEl.style.background = "#DCFCE7"; alertEl.style.color = "#166534";
+      alertEl.style.display = "block";
+      document.getElementById("publicHelpForm").reset();
+    } catch (err) {
+      alertEl.textContent = err.message;
+      alertEl.style.background = "#FEE2E2"; alertEl.style.color = "#991B1B";
+      alertEl.style.display = "block";
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Send Message";
+    }
+  });
+</script>
+</body>
+</html>

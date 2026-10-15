@@ -51,12 +51,16 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
       <span>Regulations</span>
     </button>
+    <button class="sidebar-btn" id="openFeedbackBtn" type="button" onclick="openModal('feedbackModal')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      <span>Feedback</span>
+    </button>
   </nav>
 
   <div class="sidebar-footer">
-    <div class="sidebar-help-card">
+    <div class="sidebar-help-card" style="cursor:pointer;" onclick="window.open('help.html', '_blank')">
       <div class="sidebar-help-card-title">📖 Need Help?</div>
-      <div class="sidebar-help-card-sub">Check our documentation & formulas.</div>
+      <div class="sidebar-help-card-sub">Check FAQs & calculation guide.</div>
     </div>
     <button class="sidebar-btn" id="logoutBtn" style="color:var(--accent-rose-txt);">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -100,7 +104,28 @@
       <!-- Welcome Header -->
       <div style="margin-bottom:24px;" class="animate-fade-in">
         <h1 id="welcomeMsg" style="font-size:1.8rem;">Good afternoon, Student 👋</h1>
-        <p style="color:var(--text-sub);font-size:14.5px;">Track your academic performance and published results in one place.</p>
+        <p style="color:var(--text-sub);font-size:14.5px;">B.Tech Academic Overview — Track semester performance and published exam results.</p>
+      </div>
+
+      <!-- Onboarding Welcome Banner (shown when student has 0 semesters) -->
+      <div id="onboardingBanner" class="card-box" style="display:none;background:linear-gradient(135deg, rgba(59,130,246,0.08), rgba(167,139,250,0.08));border:1px solid rgba(96,165,250,0.3);margin-bottom:24px;padding:24px;">
+        <div style="display:flex;align-items:flex-start;gap:16px;">
+          <div style="font-size:2rem;line-height:1;">🚀</div>
+          <div style="flex:1;">
+            <h3 style="margin:0 0 6px 0;font-size:1.1rem;font-weight:700;">Welcome to GradeWise!</h3>
+            <p style="margin:0 0 14px 0;color:var(--text-sub);font-size:14px;line-height:1.6;">
+              Your academic dashboard is currently empty. Add your first semester to start tracking your academic performance.
+            </p>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;">
+              <button type="button" class="btn btn-primary btn-sm" onclick="openAddSemesterModal()">
+                + Add First Semester
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="switchTab('results')">
+                View Published Results
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Top KPI Metric Cards Row -->
@@ -108,7 +133,7 @@
         <!-- CGPA Metric Card -->
         <div class="metric-card">
           <div class="metric-header">
-            <span class="metric-label">Current CGPA</span>
+            <span class="metric-label">Overall CGPA</span>
             <span class="badge badge-info">Cumulative</span>
           </div>
           <div class="metric-value-row">
@@ -534,6 +559,17 @@
       </div>
     </section>
 
+    <!-- App Footer -->
+    <footer style="margin-top:40px;padding-top:20px;border-top:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;font-size:12.5px;color:var(--text-sub);">
+      <div>© 2026 GradeWise. All rights reserved. Designed for JNTUK R23.</div>
+      <div style="display:flex;gap:16px;">
+        <a href="about.html" target="_blank" style="color:var(--text-sub);text-decoration:none;">About</a>
+        <a href="help.html" target="_blank" style="color:var(--text-sub);text-decoration:none;">Help & FAQs</a>
+        <a href="privacy.html" target="_blank" style="color:var(--text-sub);text-decoration:none;">Privacy Policy</a>
+        <a href="terms.html" target="_blank" style="color:var(--text-sub);text-decoration:none;">Terms of Use</a>
+      </div>
+    </footer>
+
   </main>
 </div>
 
@@ -609,7 +645,114 @@
   </div>
 </div>
 
+<!-- ── FEEDBACK MODAL ────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="feedbackModal">
+  <div class="modal card-box" style="max-width:500px;width:92%;">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--border-color);margin-bottom:16px;">
+      <div>
+        <h2 class="card-title" style="margin:0;font-size:1.2rem;">Submit Feedback / Report Issue</h2>
+        <span style="font-size:12px;color:var(--text-sub);">We appreciate your feedback to improve GradeWise</span>
+      </div>
+      <button class="icon-btn" onclick="closeModal('feedbackModal')" type="button">✕</button>
+    </div>
+
+    <form id="feedbackForm" style="display:flex;flex-direction:column;gap:16px;">
+      <div>
+        <label style="font-size:11px;font-weight:700;color:var(--text-sub);display:block;margin-bottom:4px;text-transform:uppercase;">CATEGORY *</label>
+        <select id="fbCategory" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-main);border-radius:6px;font-size:13.5px;" required>
+          <option value="General Feedback">General Feedback</option>
+          <option value="Bug Report">Bug Report</option>
+          <option value="Calculation Issue">Calculation Issue</option>
+          <option value="Feature Request">Feature Request</option>
+        </select>
+      </div>
+
+      <div>
+        <label style="font-size:11px;font-weight:700;color:var(--text-sub);display:block;margin-bottom:4px;text-transform:uppercase;">SUBJECT *</label>
+        <input type="text" id="fbSubject" placeholder="Brief summary of feedback" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-main);border-radius:6px;font-size:13.5px;" required />
+      </div>
+
+      <div>
+        <label style="font-size:11px;font-weight:700;color:var(--text-sub);display:block;margin-bottom:4px;text-transform:uppercase;">MESSAGE *</label>
+        <textarea id="fbMessage" rows="4" placeholder="Detailed description..." style="width:100%;padding:8px 12px;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-main);border-radius:6px;font-size:13.5px;" required></textarea>
+      </div>
+
+      <div id="fbAlert" style="display:none;" class="alert"></div>
+
+      <div style="display:flex;justify-content:flex-end;gap:12px;padding-top:12px;border-top:1px solid var(--border-color);">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('feedbackModal')" type="button">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="saveFeedbackBtn">Send Feedback</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── UPDATE GRADE / BACKLOG CLEARANCE MODAL ───────────────────────── -->
+<div class="modal-overlay" id="updateGradeModal">
+  <div class="modal card-box" style="max-width:520px;width:92%;">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--border-color);margin-bottom:16px;">
+      <div>
+        <h3 class="card-title" style="margin:0;font-size:1.2rem;">Clear Backlog / Update Grade</h3>
+        <span style="font-size:12px;color:var(--text-sub);" id="ugSemSubtitle">Semester Record</span>
+      </div>
+      <button class="icon-btn" onclick="closeModal('updateGradeModal')" type="button">✕</button>
+    </div>
+
+    <form id="updateGradeForm">
+      <input type="hidden" id="ugSemester" />
+      <input type="hidden" id="ugSubject" />
+
+      <div style="background:var(--bg-muted);border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:14px;margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div>
+            <div style="font-weight:700;font-size:14px;color:var(--text-main);" id="ugSubjectName">Subject Name</div>
+            <div style="font-size:11.5px;color:var(--text-sub);font-family:var(--font-mono);" id="ugSubjectCode">Code</div>
+          </div>
+          <span class="sem-credit-pill" id="ugCredits">0 Cr</span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border-color);font-size:12.5px;">
+          <div>
+            <span style="color:var(--text-sub);">Previous Grade:</span>
+            <strong style="color:var(--brand-danger);margin-left:4px;" id="ugPrevGrade">F</strong>
+          </div>
+          <div>
+            <span style="color:var(--text-sub);">Previous Points:</span>
+            <strong style="margin-left:4px;" id="ugPrevGradePoint">0</strong>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:18px;">
+        <label style="display:block;font-size:11px;font-weight:700;color:var(--text-sub);margin-bottom:6px;text-transform:uppercase;">NEW OBTAINED GRADE *</label>
+        <select id="ugNewGrade" style="width:100%;padding:10px 12px;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-main);border-radius:6px;font-size:14px;font-weight:600;" required onchange="onUgGradeSelectChange(this.value)">
+          <option value="S">S (10 Points — Outstanding)</option>
+          <option value="A">A (9 Points — Excellent)</option>
+          <option value="B" selected>B (8 Points — Very Good)</option>
+          <option value="C">C (7 Points — Good)</option>
+          <option value="D">D (6 Points — Fair)</option>
+          <option value="E">E (5 Points — Satisfactory)</option>
+        </select>
+      </div>
+
+      <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:12px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;font-size:13px;">
+        <span style="color:var(--text-sub);">Corresponding Grade Point:</span>
+        <strong style="color:var(--brand-primary);font-size:1.1rem;font-family:var(--font-head);" id="ugNewGradePointDisplay">8 Points</strong>
+      </div>
+
+      <div id="ugAlert" style="display:none;" class="alert"></div>
+
+      <div style="display:flex;justify-content:flex-end;gap:12px;padding-top:12px;border-top:1px solid var(--border-color);">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('updateGradeModal')">Cancel</button>
+        <button type="submit" id="ugSubmitBtn" class="btn btn-primary" style="background:var(--brand-primary);color:white;font-weight:700;">Save & Recalculate</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="app.js"></script>
+<link rel="stylesheet" href="ai-widget.css"/>
+<script src="ai-widget.js"></script>
 </body>
 </html>

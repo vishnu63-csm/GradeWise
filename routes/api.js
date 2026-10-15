@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Student = require("../models/Student");
 const StudentResult = require("../models/StudentResult");
+const Feedback = require("../models/Feedback");
 const authMiddleware = require("../middleware/auth");
 
 const GRADE_POINTS = { S: 10, A: 9, B: 8, C: 7, D: 6, E: 5, F: 0, Ab: 0 };
@@ -42,8 +43,48 @@ function computeCgpaFromSemesters(semesters, category) {
   return { cgpa, percentage, totalCredits };
 }
 
+// ── Public Feedback Endpoint ──────────────────────────────────────────────────
+router.post("/feedback/public", async (req, res) => {
+  try {
+    const { category, subject, message, userRollNumber, userName } = req.body;
+    if (!subject || !subject.trim() || !message || !message.trim()) {
+      return res.status(400).json({ error: "Subject and message are required." });
+    }
+    const feedback = await Feedback.create({
+      category: category || "General Feedback",
+      subject: subject.trim(),
+      message: message.trim(),
+      userRollNumber: userRollNumber ? userRollNumber.trim().toUpperCase() : "Anonymous",
+      userName: userName ? userName.trim() : "",
+    });
+    res.status(201).json({ success: true, feedback });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // All routes below require a valid JWT
 router.use(authMiddleware);
+
+// ── Authenticated Feedback Endpoint ──────────────────────────────────────────
+router.post("/feedback", async (req, res) => {
+  try {
+    const { category, subject, message } = req.body;
+    if (!subject || !subject.trim() || !message || !message.trim()) {
+      return res.status(400).json({ error: "Subject and message are required." });
+    }
+    const feedback = await Feedback.create({
+      category: category || "General Feedback",
+      subject: subject.trim(),
+      message: message.trim(),
+      userRollNumber: req.user.rollNumber,
+      userName: req.user.name || "",
+    });
+    res.status(201).json({ success: true, feedback });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // GET /api/student
 router.get("/student", async (req, res) => {
@@ -107,6 +148,107 @@ router.delete("/student/semester/:semester", async (req, res) => {
     const studentPlain = student.toObject();
     const derived = computeCgpaFromSemesters(studentPlain.semesters, studentPlain.category);
     res.json({ student: studentPlain, ...studentPlain, ...(derived || {}) });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// POST /api/student/semester/update-grade — Backlog clearance & grade update
+router.post("/student/semester/update-grade", async (req, res) => {
+  try {
+    const { semester, subject, subjectCode, newGrade } = req.body;
+    if (!semester || (!subject && !subjectCode) || !newGrade) {
+      return res.status(400).json({ error: "semester, subject/subjectCode, and newGrade are required." });
+    }
+
+    const validGrades = ["S", "A", "B", "C", "D", "E", "F", "Ab"];
+    const formattedGrade = String(newGrade).trim();
+    if (!validGrades.includes(formattedGrade)) {
+      return res.status(400).json({ error: `Invalid grade: ${newGrade}. Must be one of S, A, B, C, D, E, F, Ab.` });
+    }
+
+    const student = await Student.findOne({ rollNumber: req.user.rollNumber });
+    if (!student) {
+      return res.status(404).json({ error: "Student record not found." });
+    }
+
+    if (student.category === "Lateral Entry" && (semester === "1-1" || semester === "1-2")) {
+      return res.status(400).json({ error: "Lateral Entry students cannot modify 1-1 or 1-2 semester grades." });
+    }
+
+    const semRecord = student.semesters.find((s) => s.semester === semester);
+    if (!semRecord) {
+      return res.status(404).json({ error: `Semester ${semester} not found for this student.` });
+    }
+
+    const targetSub = semRecord.subjects.find(
+      (s) => (subject && s.subject.toLowerCase() === String(subject).trim().toLowerCase()) ||
+             (subjectCode && s.code && s.code.toLowerCase() === String(subjectCode).trim().toLowerCase())
+    );
+
+    if (!targetSub) {
+      return res.status(404).json({ error: `Subject '${subject || subjectCode}' not found in semester ${semester}.` });
+    }
+
+    const previousGrade = targetSub.grade;
+    const previousGradePoint = GRADE_POINTS[previousGrade] !== undefined ? GRADE_POINTS[previousGrade] : 0;
+    const newGradePoint = GRADE_POINTS[formattedGrade];
+
+    if (previousGrade === formattedGrade) {
+      return res.status(400).json({ error: `Subject already has grade ${formattedGrade}.` });
+    }
+
+    // Update grade and gradePoint
+    targetSub.grade = formattedGrade;
+    targetSub.gradePoint = newGradePoint;
+
+    // Audit record on subject
+    if (!targetSub.history) targetSub.history = [];
+    targetSub.history.push({
+      previousGrade,
+      previousGradePoint,
+      newGrade: formattedGrade,
+      newGradePoint,
+      updatedAt: new Date(),
+      updatedBy: req.user.rollNumber || req.user.name || "Student",
+    });
+
+    // Audit record on student gradeHistory
+    if (!student.gradeHistory) student.gradeHistory = [];
+    student.gradeHistory.push({
+      semester,
+      subjectCode: targetSub.code || "",
+      subjectName: targetSub.subject,
+      previousGrade,
+      previousGradePoint,
+      newGrade: formattedGrade,
+      newGradePoint,
+      attemptDate: new Date(),
+      updatedBy: req.user.rollNumber || "Student",
+    });
+
+    // Recalculate semester SGPA
+    const { sgpa, credits } = calcSgpa(semRecord.subjects);
+    semRecord.sgpa = sgpa;
+    semRecord.credits = credits;
+
+    await student.save();
+
+    const studentPlain = student.toObject();
+    const derived = computeCgpaFromSemesters(studentPlain.semesters, studentPlain.category);
+    const sgpaPct = (sgpa - 0.75) * 10;
+
+    res.json({
+      success: true,
+      message: `Grade updated from ${previousGrade} to ${formattedGrade} for ${targetSub.subject}. SGPA & CGPA recalculated.`,
+      semester,
+      sgpa,
+      sgpaPct,
+      credits,
+      ...(derived || {}),
+      student: studentPlain,
+      historyRecord: studentPlain.gradeHistory[studentPlain.gradeHistory.length - 1],
+    });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

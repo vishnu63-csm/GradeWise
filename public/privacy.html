@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Privacy Policy — GradeWise</title>
+<meta name="description" content="Privacy Policy for GradeWise academic performance platform."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="auth.css"/>
+<style>
+  .header-nav a.active { color: var(--blue); font-weight: 600; }
+  .legal-section { margin-bottom: 36px; line-height: 1.7; color: var(--text-muted); }
+  .legal-section h2 { font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; color: var(--text); margin-bottom: 12px; scroll-margin-top: 100px; }
+  .legal-section p { font-size: 15px; margin-bottom: 12px; }
+  .legal-section ul { margin-left: 20px; margin-bottom: 12px; }
+  .legal-section li { margin-bottom: 6px; font-size: 15px; }
+</style>
+</head>
+<body>
+
+  <!-- ── HEADER ────────────────────────────────────────────────────────────── -->
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="/" style="text-decoration:none;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:1.4rem;">🎓</span>
+        <span style="font-family:var(--font-display);font-size:1.3rem;font-weight:700;color:var(--text);">GradeWise</span>
+      </a>
+
+      <nav class="header-nav" id="headerNav">
+        <a href="/">Home</a>
+        <a href="/how-it-works">How It Works</a>
+        <a href="/help">Help</a>
+        <a href="/about">About</a>
+      </nav>
+
+      <div class="header-actions">
+        <a href="/login" class="btn-saas-secondary" style="padding:7px 14px;font-size:13.5px;">Sign In</a>
+        <a href="/signup" class="btn-saas-primary" style="padding:7px 16px;font-size:13.5px;">Get Started</a>
+        <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Toggle menu">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── DOCUMENTATION SPLIT LAYOUT ────────────────────────────────────────── -->
+  <div class="doc-split-layout">
+    
+    <!-- Sticky Left Navigation -->
+    <aside class="doc-sidebar">
+      <div style="font-family:var(--font-display);font-size:12px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:12px;">CONTENTS</div>
+      <a href="#sec1" class="active">1. Information We Collect</a>
+      <a href="#sec2">2. How We Use Information</a>
+      <a href="#sec3">3. Academic Records</a>
+      <a href="#sec4">4. Authentication & Security</a>
+      <a href="#sec5">5. Data Sharing</a>
+      <a href="#sec6">6. Data Retention</a>
+      <a href="#sec7">7. Your Rights</a>
+      <a href="#sec8">8. Contact</a>
+    </aside>
+
+    <!-- Document Content Body -->
+    <main class="doc-body">
+      <h1 style="font-family:var(--font-display);font-size:2.4rem;font-weight:800;color:var(--text);margin-bottom:6px;">Privacy Policy</h1>
+      <div style="font-family:var(--font-mono);font-size:13px;color:var(--text-subtle);margin-bottom:36px;">Last updated: September 2026</div>
+
+      <div class="legal-section" id="sec1">
+        <h2>1. Information We Collect</h2>
+        <p>GradeWise collects minimal student information required to process and store academic performance records:</p>
+        <ul>
+          <li><strong>Student Profile Identifiers:</strong> Name, Roll Number (e.g. 23A31A6201), Admission Category (Regular or Lateral Entry), Branch/Department, Phone Number, and hashed Password.</li>
+          <li><strong>Technical Logs:</strong> IP address and HTTP access timestamps for security audit purposes.</li>
+        </ul>
+      </div>
+
+      <div class="legal-section" id="sec2">
+        <h2>2. How We Use Information</h2>
+        <p>Your information is used exclusively to provide academic progress tracking services, including SGPA and CGPA credit-weighted calculations.</p>
+      </div>
+
+      <div class="legal-section" id="sec3">
+        <h2>3. Academic Records</h2>
+        <p>Academic records (subject codes, titles, credit values, earned grades, and backlog flags) are entered by students or matched from published university gazettes.</p>
+      </div>
+
+      <div class="legal-section" id="sec4">
+        <h2>4. Authentication & Security</h2>
+        <p>All student requests require cryptographically verified JSON Web Tokens (JWT). Access to student records is scoped strictly to the authenticated user's Roll Number.</p>
+      </div>
+
+      <div class="legal-section" id="sec5">
+        <h2>5. Data Sharing & AI Processing</h2>
+        <p>GradeWise does not sell, rent, or trade student personal information or grade records with third-party advertisers or commercial entities.</p>
+        <p>When an authenticated student uses the <strong>GradeWise AI Assistant</strong>, minimal non-sensitive academic summary metrics (such as branch, semester SGPAs, and calculated CGPA) are processed securely via Groq API infrastructure to answer your academic queries. Sensitive credentials (passwords, JWT secrets, reset tokens) are never transmitted to AI providers.</p>
+      </div>
+
+      <div class="legal-section" id="sec6">
+        <h2>6. Data Retention</h2>
+        <p>Your student profile and associated semester records are retained for as long as your account remains active.</p>
+      </div>
+
+      <div class="legal-section" id="sec7">
+        <h2>7. Your Rights</h2>
+        <p>You have the right to inspect, update, or request the deletion of your personal account and academic history at any time.</p>
+      </div>
+
+      <div class="legal-section" id="sec8">
+        <h2>8. Contact</h2>
+        <p>If you have questions regarding this Privacy Policy, please contact us via the <a href="/help#support" style="color:var(--blue);">Help & Support Center</a>.</p>
+      </div>
+    </main>
+
+  </div>
+
+  <!-- ── FOOTER ────────────────────────────────────────────────────────────── -->
+  <footer class="site-footer">
+    <div class="footer-inner" style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:32px;">
+      <div>
+        <div style="font-family:var(--font-display);font-weight:700;color:var(--text);font-size:1.2rem;margin-bottom:8px;display:flex;align-items:center;gap:8px;">
+          🎓 GradeWise
+        </div>
+        <p style="color:var(--text-muted);font-size:13.5px;max-width:280px;line-height:1.5;">
+          Academic performance tracking, made simple.
+        </p>
+      </div>
+
+      <div>
+        <div style="font-weight:700;color:var(--text);font-size:13px;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.04em;">Product</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13.5px;">
+          <a href="/" style="color:var(--text-muted);text-decoration:none;">Home</a>
+          <a href="/how-it-works" style="color:var(--text-muted);text-decoration:none;">How It Works</a>
+          <a href="/help" style="color:var(--text-muted);text-decoration:none;">Help</a>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-weight:700;color:var(--text);font-size:13px;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.04em;">Company</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13.5px;">
+          <a href="/about" style="color:var(--text-muted);text-decoration:none;">About</a>
+          <a href="/help#support" style="color:var(--text-muted);text-decoration:none;">Feedback</a>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-weight:700;color:var(--text);font-size:13px;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.04em;">Legal</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13.5px;">
+          <a href="/privacy" style="color:var(--text-muted);text-decoration:none;">Privacy</a>
+          <a href="/terms" style="color:var(--text-muted);text-decoration:none;">Terms</a>
+        </div>
+      </div>
+    </div>
+
+    <div style="max-width:1200px;margin:32px auto 0;padding-top:20px;border-top:1px solid var(--border);font-size:13px;color:var(--text-subtle);text-align:center;">
+      © 2026 GradeWise. All rights reserved.
+    </div>
+  </footer>
+
+<script>
+  document.getElementById("mobileMenuBtn")?.addEventListener("click", () => {
+    document.getElementById("headerNav")?.classList.toggle("active");
+  });
+
+  // Sticky nav active highlight on scroll
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.getAttribute("id");
+        document.querySelectorAll(".doc-sidebar a").forEach(a => {
+          a.classList.toggle("active", a.getAttribute("href") === `#${id}`);
+        });
+      }
+    });
+  }, { threshold: 0.5 });
+
+  document.querySelectorAll(".legal-section").forEach(sec => observer.observe(sec));
+</script>
+</body>
+</html>
