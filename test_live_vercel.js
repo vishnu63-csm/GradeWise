@@ -118,14 +118,58 @@ async function verifyLiveVercel() {
     console.log("Step 5: Updating grade F -> B on live Vercel app...");
     await page.select("#ugNewGrade", "B");
     await page.click("#ugSubmitBtn");
-    await new Promise(r => setTimeout(r, 1500));
+    
+    // Wait for update processing to finish and modal to close
+    await page.waitForFunction(() => {
+      const modal = document.getElementById("updateGradeModal");
+      return modal && !modal.classList.contains("open");
+    }, { timeout: 15000 });
 
-    // Reload page to test persistence on Vercel
+    // Step 6: Verify subject row reflects new Grade B on live site
+    const updatedSubjText = await page.evaluate(() => {
+      const rows = Array.from(document.querySelectorAll(".sem-subject-row"));
+      const mathRow = rows.find(r => r.textContent.includes("Mathematics-I"));
+      return mathRow ? mathRow.textContent : "";
+    });
+    console.log(`Live Subject Row Text: ${updatedSubjText.replace(/\s+/g, ' ')}`);
+    if (!updatedSubjText.includes("B")) {
+      throw new Error(`Live subject row failed to update to B! Got: ${updatedSubjText}`);
+    }
+    console.log("✅ Live subject row verified: Grade updated to B.");
+
+    // Step 7: Navigate to Dashboard to verify dynamic KPI updates
+    console.log("Step 7: Checking live Dashboard KPIs...");
+    await page.click('button[data-tab="home"]');
+    await page.waitForFunction(() => {
+      const el = document.getElementById("kpiCgpa");
+      return el && el.textContent.trim() === "8.60";
+    }, { timeout: 10000 });
+
+    const newCgpa = await page.$eval("#kpiCgpa", el => el.textContent.trim());
+    const newBacklogs = await page.$eval("#kpiBacklogs", el => el.textContent.trim());
+    console.log(`Live Updated KPIs -> CGPA: ${newCgpa}, Backlogs: ${newBacklogs}`);
+
+    if (newCgpa !== "8.60" || newBacklogs !== "0") {
+      throw new Error(`Live KPI mismatch! Expected CGPA=8.60, Backlogs=0. Got CGPA=${newCgpa}, Backlogs=${newBacklogs}`);
+    }
+    console.log("✅ Live dynamic KPI updates verified! CGPA=8.60, Backlogs=0.");
+
+    // Step 8: Reload page to test persistence on live Vercel
+    console.log("Step 8: Reloading live page to test persistence...");
     await page.reload({ waitUntil: "networkidle0" });
-    await new Promise(r => setTimeout(r, 1200));
+    await page.waitForFunction(() => {
+      const el = document.getElementById("kpiCgpa");
+      return el && el.textContent.trim() === "8.60";
+    }, { timeout: 10000 });
 
     const reloadedCgpa = await page.$eval("#kpiCgpa", el => el.textContent.trim());
-    console.log(`Reloaded Live CGPA: ${reloadedCgpa}`);
+    const reloadedBacklogs = await page.$eval("#kpiBacklogs", el => el.textContent.trim());
+    console.log(`Reloaded Live KPIs -> CGPA: ${reloadedCgpa}, Backlogs: ${reloadedBacklogs}`);
+
+    if (reloadedCgpa !== "8.60" || reloadedBacklogs !== "0") {
+      throw new Error(`Live persistence failure! CGPA: ${reloadedCgpa}, Backlogs: ${reloadedBacklogs}`);
+    }
+    console.log("✅ Live persistence verified! Grade update, SGPA & CGPA persist across browser reloads.");
 
     console.log("\n==================================================");
     console.log("LIVE VERCEL DEPLOYMENT VERIFICATION PASSED 100%!");
